@@ -98,6 +98,7 @@ set(SRC_COMMON
   )
 
 add_library(libims STATIC ${SRC_COMMON})
+add_dependencies(libims blosc)
 set_target_properties(libims PROPERTIES OUTPUT_NAME ims)
 
 set(LIB_COMMON libims ${BLOSC_LIBRARY})
