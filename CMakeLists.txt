@@ -25,7 +25,6 @@ else()
 endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++11 -pthread")
 
 # MessagePack - simple serialization library
 externalproject_add(msgpack
@@ -69,6 +68,8 @@ find_package(ZLIB REQUIRED)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 include_directories(${LIBXML2_INCLUDE_DIR})
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++11 -pthread")
 
 ExternalProject_Get_Property(blosc binary_dir)
 set(BLOSC_LIBRARY ${binary_dir}/blosc/libblosc.a ${ZLIB_LIBRARY})
@@ -119,7 +120,7 @@ if ( WIN32 )
 elseif ( APPLE )
   target_link_libraries(ims-bin ${BLOSC_LIBRARY} -lxml2 libims /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ims-bin -Wl,-Bstatic  ${LIB_COMMON} -lxml2 -lz -lfftw3 -lm -llzma)
+  target_link_libraries(ims-bin -Wl,-Bstatic -lxml2 libims -lfftw3 -llzma -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 add_dependencies(ims-bin blosc libims msgpack)
 
@@ -131,7 +132,7 @@ if ( WIN32 )
 elseif ( APPLE )
   target_link_libraries(ms_cffi libims /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ms_cffi -Wl,-Bstatic libims -lfftw3 -Wl,-Bdynamic -lpthread)
+  target_link_libraries(ms_cffi -Wl,-Bstatic -l:libims.a -lfftw3 -Wl,-Bdynamic)
 endif()
 add_dependencies(ms_cffi libims)
 
