@@ -132,7 +132,7 @@ if ( WIN32 )
 elseif ( APPLE )
   target_link_libraries(ms_cffi libims /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ms_cffi -Wl,-Bstatic -l:libims.a -lfftw3 -Wl,-Bdynamic)
+  target_link_libraries(ms_cffi -Wl,-Bstatic -l:libims.a -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 add_dependencies(ms_cffi libims)
 
