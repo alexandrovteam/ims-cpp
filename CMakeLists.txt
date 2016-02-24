@@ -46,7 +46,7 @@ externalproject_add(blosc
   BUILD_COMMAND make blosc_static
   CMAKE_ARGS -DBUILD_TESTS:BOOL=OFF -DBUILD_BENCHMARKS:BOOL=OFF -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
              -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   )
 ExternalProject_Get_Property(blosc source_dir)
 include_directories(${source_dir}/blosc/)
@@ -131,9 +131,9 @@ set_target_properties(ims-bin PROPERTIES OUTPUT_NAME ims)
 if ( WIN32 )
   target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -lncurses -lxml2 -liconv libims -lfftw3 -lgomp -lwinpthread -lws2_32)
 elseif ( APPLE )
-  target_link_libraries(ims-bin ${BLOSC_LIBRARY} -lxml2 libims /usr/local/opt/fftw/lib/libfftw3.a)
+  target_link_libraries(ims-bin ${BLOSC_LIBRARY} ${PROGRESSBAR_LIB} -lncurses -lxml2 libims /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ims-bin -Wl,-Bstatic -lxml2 libims -lfftw3 -llzma -lstdc++ -Wl,-Bdynamic -lm)
+  target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -ltermcap -lxml2 libims -lfftw3 -llzma -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 add_dependencies(ims-bin blosc libims msgpack progressbar)
 

@@ -54,7 +54,7 @@ struct FileHeader {
     stream.read(reinterpret_cast<char*>(&mask.data[0]),
                 mask.data.size() * sizeof(uint64_t));
 
-    stream.seekg(pos + header_len);
+    stream.seekg(pos + header_len, std::ios::beg);
   }
 
   void write(std::ofstream& stream) {

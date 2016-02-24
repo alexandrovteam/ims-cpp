@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
 
 namespace imzb {
 
@@ -39,7 +40,14 @@ struct Index {
     double mz;
     uint64_t offset;
     while (binary_read(stream, mz)) {
-      assert(binary_read(stream, offset));
+      auto result = binary_read(stream, offset);
+      if (!result) throw std::runtime_error("unexpected end of stream");
+
+      if (!offsets.empty()) {
+        if (offset <= offsets.back() || mz < mzs.back())
+          throw std::runtime_error("the index file contains invalid data");
+      }
+
       mzs.push_back(mz);
       offsets.push_back(offset);
     }
