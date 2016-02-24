@@ -1,13 +1,13 @@
 #pragma once
 
 #if defined _WIN32
-  #define DLL_PUBLIC __declspec(dllexport)
+  #define IMS_EXTERN __declspec(dllexport)
 #else
-  #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+  #define IMS_EXTERN __attribute__ ((visibility ("default")))
 #endif
 
 extern "C" {
-  DLL_PUBLIC const char* ims_strerror();
+  IMS_EXTERN const char* ims_strerror();
 }
 
 #include <string>

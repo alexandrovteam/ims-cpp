@@ -4,19 +4,19 @@
 #include <mutex>
 
 namespace cffi {
-	static std::string last_error;
+  static std::string last_error;
 
-	static std::mutex m_;
+  static std::mutex m_;
 
-	void setErrorMessage(const std::string& e) {
-		std::lock_guard<std::mutex> lock_guard(m_);
-		last_error = e;
-	}
+  void setErrorMessage(const std::string& e) {
+    std::lock_guard<std::mutex> lock_guard(m_);
+    last_error = e;
+  }
 }
 
 extern "C" {
 
-	DLL_PUBLIC const char* ims_strerror() {
-		return cffi::last_error.c_str();
-	}
+  IMS_EXTERN const char* ims_strerror() {
+    return cffi::last_error.c_str();
+  }
 }
