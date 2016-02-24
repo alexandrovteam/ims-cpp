@@ -39,6 +39,8 @@ class IsotopePatternDB {
   // use a simple structure that doesn't require special msgpack methods
   std::map<SFAdductPair, std::map<std::string, std::vector<double>>> patterns_;
 
+  bool use_progressbar_;
+
   static std::vector<SFAdductPair> makePairs(
     const std::vector<std::string>& sum_formulas,
     const std::vector<std::string>& adducts)
@@ -62,7 +64,7 @@ public:
   }
 
   IsotopePatternDB(const std::vector<std::pair<std::string, std::string>>& sf_adduct_pairs) :
-    pairs_(sf_adduct_pairs)
+    pairs_(sf_adduct_pairs), use_progressbar_(false)
   {
   }
 
@@ -77,6 +79,10 @@ public:
     auto& entry = patterns_.at(std::make_pair(formula, adduct));
     return ms::IsotopePattern{entry.at("mzs"), entry.at("abundances")};
   }
+
+  void useProgressBar(bool use) {
+    use_progressbar_ = use;
+  } 
 
   size_t size() const {
     assert(patterns_.size() == pairs_.size());

@@ -71,6 +71,8 @@ int isocalc_main(int argc, char** argv) {
 
 	utils::IsotopePatternDB db{sum_formulas, target_adducts};
 	utils::OrbitrapProfile orbitrap{resolution};
+  std::ios_base::sync_with_stdio(true);
+  db.useProgressBar(true);
 	db.computeIsotopePatterns(orbitrap, max_peaks);
 	db.save(output_file);
 

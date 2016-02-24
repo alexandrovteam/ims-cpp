@@ -37,6 +37,7 @@ externalproject_add(msgpack
 ExternalProject_Get_Property(msgpack source_dir)
 include_directories(${source_dir}/include)
 
+find_package(ZLIB REQUIRED)
 # blosc - fast compressor for numeric data
 externalproject_add(blosc
   GIT_REPOSITORY https://github.com/Blosc/c-blosc
@@ -47,6 +48,10 @@ externalproject_add(blosc
              -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
              -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
   )
+ExternalProject_Get_Property(blosc source_dir)
+include_directories(${source_dir}/blosc/)
+ExternalProject_Get_Property(blosc binary_dir)
+set(BLOSC_LIBRARY ${binary_dir}/blosc/libblosc.a ${ZLIB_LIBRARY})
 
 # cxxopts - lightweight command line options parser
 externalproject_add(cxxopts
@@ -59,20 +64,29 @@ externalproject_add(cxxopts
 ExternalProject_Get_Property(cxxopts source_dir)
 include_directories(${source_dir}/src)
 
-ExternalProject_Get_Property(blosc source_dir)
-include_directories(${source_dir}/blosc/)
+set(PROGRESSBAR_DIR ${PROJECT_SOURCE_DIR}/third-party/progressbar)
+externalproject_add(progressbar
+  GIT_REPOSITORY https://github.com/doches/progressbar
+  GIT_TAG 760e20c245a72cf564687c1ecc18163799229c58
+  CONFIGURE_COMMAND ""
+  INSTALL_COMMAND ""
+  DOWNLOAD_DIR ${PROGRESSBAR_DIR}
+  SOURCE_DIR ${PROGRESSBAR_DIR}
+  BINARY_DIR ${PROGRESSBAR_DIR}
+  BUILD_COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_FLAGS} -c -Iinclude lib/progressbar.c  -o lib/libprogressbar.a
+  )
+ExternalProject_Get_Property(progressbar source_dir)
+include_directories(${source_dir}/include)
+set(PROGRESSBAR_LIB ${PROGRESSBAR_DIR}/lib/libprogressbar.a)
 
 find_package(OpenMP REQUIRED)
 find_package(LibXml2 REQUIRED)
-find_package(ZLIB REQUIRED)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 include_directories(${LIBXML2_INCLUDE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -std=c++11 -pthread")
 
-ExternalProject_Get_Property(blosc binary_dir)
-set(BLOSC_LIBRARY ${binary_dir}/blosc/libblosc.a ${ZLIB_LIBRARY})
 
 find_library(FFTW_LIBRARY NAMES fftw3 fftw fftw-3.3)
 
@@ -102,7 +116,6 @@ add_library(libims STATIC ${SRC_COMMON})
 add_dependencies(libims blosc)
 set_target_properties(libims PROPERTIES OUTPUT_NAME ims)
 
-set(LIB_COMMON libims ${BLOSC_LIBRARY})
 if ( NOT APPLE )
 target_link_libraries(libims ${BLOSC_LIBRARY})
 endif()
@@ -116,13 +129,13 @@ add_executable(ims-bin
   utils/isotope_pattern_db.cpp)
 set_target_properties(ims-bin PROPERTIES OUTPUT_NAME ims)
 if ( WIN32 )
-  target_link_libraries(ims-bin -Wl,-Bstatic -lxml2 -liconv libims -lfftw3 -lgomp -lwinpthread -lws2_32)
+  target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -lncurses -lxml2 -liconv libims -lfftw3 -lgomp -lwinpthread -lws2_32)
 elseif ( APPLE )
   target_link_libraries(ims-bin ${BLOSC_LIBRARY} -lxml2 libims /usr/local/opt/fftw/lib/libfftw3.a)
 else()
   target_link_libraries(ims-bin -Wl,-Bstatic -lxml2 libims -lfftw3 -llzma -lstdc++ -Wl,-Bdynamic -lm)
 endif()
-add_dependencies(ims-bin blosc libims msgpack)
+add_dependencies(ims-bin blosc libims msgpack progressbar)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 

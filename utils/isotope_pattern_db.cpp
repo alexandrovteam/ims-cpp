@@ -2,6 +2,12 @@
 #include "ms/isocalc.hpp"
 
 #include "msgpack.hpp"
+
+extern "C" {
+#include "progressbar.h"
+}
+
+#include <cstdio>
 #include <mutex>
 
 namespace utils {
@@ -10,6 +16,11 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
 																							size_t max_peaks)
 {
 	std::mutex map_mutex;
+
+  progressbar* bar = nullptr;
+  const int BAR_STEP = 10;
+  if (use_progressbar_)
+    bar = progressbar_new("", pairs_.size() / BAR_STEP);
 
 #pragma omp parallel for
 	for (size_t i = 0; i < pairs_.size(); i++) {
@@ -23,10 +34,18 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
 		auto pattern = ms::computeIsotopePattern(full_formula)\
 			.centroids(res).charged(charge).trimmed(max_peaks);
 		auto key = std::make_pair(f, adduct);
+
 		std::lock_guard<std::mutex> lock(map_mutex);
 		patterns_[key]["mzs"] = pattern.masses;
 		patterns_[key]["abundances"] = pattern.abundances;
+    if (bar != nullptr && (i + 1) % BAR_STEP == 0)
+      progressbar_inc(bar);
 	}
+
+  if (bar != nullptr) {
+    progressbar_finish(bar);
+    std::fflush(stdout);
+  } 
 }
 
 void IsotopePatternDB::save(const std::string& output_filename) {
