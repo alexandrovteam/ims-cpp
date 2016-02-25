@@ -139,6 +139,8 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
     std::rotate(mz_window.begin(), mz_window.begin() + 1, mz_window.end());
     std::rotate(int_window.begin(), int_window.begin() + 1, int_window.end());
     mz_window.back() = mz_window[centroid_bins - 2] + step;
+    if (mz_window.back() > max_mz)
+      break;
     int_window.back() = envelope(mz_window.back());
 
     // check if it's a local maximum
