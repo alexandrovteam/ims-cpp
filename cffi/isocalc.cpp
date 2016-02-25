@@ -50,6 +50,13 @@ extern "C" {
     });
   }
 
+  IMS_EXTERN IsotopePattern* isotope_pattern_new_from_raw(int n, double* masses, float* intensities, int window_size)
+  {
+    return wrap_catch<IsotopePattern*>(nullptr, [&]() {
+        return heapify(detectPeaks(masses, masses + n, intensities, window_size));
+    });
+  }
+
   IMS_EXTERN IsotopePattern* isotope_pattern_copy(IsotopePattern* p) {
     return new(std::nothrow) IsotopePattern(*p);
   }
@@ -57,6 +64,13 @@ extern "C" {
   IMS_EXTERN float isotope_pattern_envelope(IsotopePattern* p, double resolution, double mz)
   {
     return p->envelope(resolution, mz);
+  }
+
+  IMS_EXTERN void isotope_pattern_envelope_plot(IsotopePattern* p, double resolution,
+                                                double* mzs, int n, float* out)
+  {
+    for (int i = 0; i < n; ++i)
+      out[i] = p->envelope(resolution, mzs[i]);
   }
 
   IMS_EXTERN IsotopePattern* isotope_pattern_centroids(IsotopePattern* p, double resolution,

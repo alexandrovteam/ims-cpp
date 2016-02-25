@@ -10,10 +10,12 @@ int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 typedef void* IsotopePattern;
 IsotopePattern isotope_pattern_new(int n, double* masses, double* abundances);
 IsotopePattern isotope_pattern_new_from_sf(char* formula, double thr, double fft_thr);
+IsotopePattern isotope_pattern_new_from_raw(int n, double* masses, double* intensities, int window_size);
 IsotopePattern isotope_pattern_copy(IsotopePattern);
-double isotope_pattern_envelope(IsotopePattern, double resolution, double mz);
+float isotope_pattern_envelope(IsotopePattern, double resolution, double mz);
+void isotope_pattern_envelope_plot(IsotopePattern, double resolution, double* mzs, int n, float* out);
 IsotopePattern isotope_pattern_centroids(IsotopePattern, double resolution, double min_abundance,
-																				 int points_per_fwhm);
+                                         int points_per_fwhm);
 int isotope_pattern_size(IsotopePattern);
 void isotope_pattern_masses(IsotopePattern, double*);
 void isotope_pattern_abundances(IsotopePattern, double*);
