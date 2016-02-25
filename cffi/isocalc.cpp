@@ -69,8 +69,9 @@ extern "C" {
   IMS_EXTERN void isotope_pattern_envelope_plot(IsotopePattern* p, double resolution,
                                                 double* mzs, int n, float* out)
   {
+    ms::EnvelopeGenerator envelope(*p, resolution);
     for (int i = 0; i < n; ++i)
-      out[i] = p->envelope(resolution, mzs[i]);
+      out[i] = envelope(mzs[i]);
   }
 
   IMS_EXTERN IsotopePattern* isotope_pattern_centroids(IsotopePattern* p, double resolution,

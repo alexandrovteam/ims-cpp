@@ -4,10 +4,13 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <stdexcept>
+#include <limits>
 #include <tuple>
 #include <cassert>
+#include <cmath>
 
 namespace ms {
+
   struct IsotopePattern {
     std::vector<double> masses;
     std::vector<double> abundances;
@@ -47,7 +50,7 @@ namespace ms {
 
     ms::IsotopePattern multiply(const IsotopePattern& other, double threshold = 0.0) const;
 
-    double envelope(double resolution, double mz) const;
+    double envelope(double resolution, double mz, size_t width=12) const;
 
     ms::IsotopePattern centroids(double resolution,
                                  double min_abundance = 1e-4,
@@ -114,4 +117,33 @@ namespace ms {
 
     return result;
   }
+
+  constexpr static double fwhm_to_sigma = 2.3548200450309493; // 2 \sqrt{2 \log 2}
+
+  IsotopePattern sortByMass(const IsotopePattern& p);
+
+  class EnvelopeGenerator {
+    IsotopePattern p_;
+    double resolution_;
+    size_t width_;
+
+    size_t peak_index_; // index of the currently processed peak
+    bool empty_space_; // true if there are no peaks within distance (width * sigma)
+
+    double last_mz_;
+    double fwhm_, sigma_;
+
+    double envelope(double mz);
+
+  public:
+    EnvelopeGenerator(const IsotopePattern& p, double resolution,
+                      size_t width=12):
+      p_(sortByMass(p)), resolution_(resolution), width_(width),
+      peak_index_(0), empty_space_(false), last_mz_(-std::numeric_limits<double>::min())
+    {
+      assert(p.size() > 0 && p.masses[0] > 0);
+    }
+
+    double operator()(double mz);
+  };
 }
