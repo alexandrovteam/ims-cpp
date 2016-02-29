@@ -7,6 +7,8 @@
 #include <vector>
 #include <mutex>
 #include <new>
+#include <stdexcept>
+#include <sstream>
 
 namespace ms {
   namespace detail {
@@ -21,6 +23,8 @@ namespace ms {
         n_ = 1;
         for (int x: dimensions)
           n_ *= x;
+        if (n_ > 1e7)
+          throw std::runtime_error("too many isotopic combinations");
         data_ = reinterpret_cast<std::complex<double>*>(fftw_alloc_complex(n_));
         if (data_ == nullptr)
           throw std::bad_alloc();
@@ -119,8 +123,15 @@ namespace ms {
     for (auto& item: element_counts) {
       assert(ms::Element::isKnown(item.first));
       auto element = ms::Element::getByName(item.first);
-      auto pattern = computeIsotopePattern(element, item.second, fft_threshold);
-      result = result.multiply(pattern, threshold * threshold);
+      try {
+        auto pattern = computeIsotopePattern(element, item.second, fft_threshold);
+        result = result.multiply(pattern, threshold * threshold);
+      } catch (std::runtime_error& e) {
+        std::stringstream full_desc;
+        full_desc << "failed to compute isotope pattern for "
+                  << item.first << item.second << ": " << e.what();
+        throw std::runtime_error(full_desc.str());
+      }
     }
 
     return result;
