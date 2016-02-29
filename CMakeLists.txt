@@ -14,8 +14,8 @@ include(ExternalProject)
 if ( APPLE )
   # necessary for GCC to use system assembler
   # http://stackoverflow.com/questions/9840207/how-to-use-avx-pclmulqdq-on-mac-os-x-lion
-  set(CMAKE_C_FLAGS "-Wa,-q")
-  set(CMAKE_CXX_FLAGS "-Wa,-q")
+  set(CMAKE_C_FLAGS "-Wa,-q -fvisibility-inlines-hidden")
+  set(CMAKE_CXX_FLAGS "-Wa,-q -fvisibility-inlines-hidden")
 elseif( WIN32 )
   # necessary for FFTW to work on 32-bit, as mentioned e.g. here: https://github.com/libgit2/libgit2/issues/3342
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mincoming-stack-boundary=2")
@@ -23,8 +23,6 @@ else()
   set(CMAKE_C_FLAGS "-fPIC")
   set(CMAKE_CXX_FLAGS "-fPIC")
 endif()
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 # MessagePack - simple serialization library
 externalproject_add(msgpack
@@ -46,6 +44,7 @@ externalproject_add(blosc
   BUILD_COMMAND make blosc_static
   CMAKE_ARGS -DBUILD_TESTS:BOOL=OFF -DBUILD_BENCHMARKS:BOOL=OFF -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
              -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS} -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
              -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   )
 ExternalProject_Get_Property(blosc source_dir)
@@ -98,7 +97,11 @@ endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+if (NOT APPLE)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+# on Mac OS X static linking leads to exceptions not being caught,
+# so it's better to just use the 'delocate-wheel' tool (puts needed shared libs into the wheel)
+endif()
 
 # necessary for static compilation
 add_definitions(-DIN_LIBXML)
@@ -139,15 +142,14 @@ add_dependencies(ims-bin blosc libims msgpack progressbar)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 
-add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp)
+add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/isotope_pattern.cpp ms/periodic_table.cpp)
 if ( WIN32 )
-  target_link_libraries(ms_cffi -Wl,-Bstatic libims -lfftw3 -lwinpthread -lws2_32)
+  target_link_libraries(ms_cffi -Wl,-Bstatic -lfftw3 -lwinpthread -lws2_32)
 elseif ( APPLE )
-  target_link_libraries(ms_cffi libims /usr/local/opt/fftw/lib/libfftw3.a)
+  target_link_libraries(ms_cffi /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ms_cffi -Wl,-Bstatic -l:libims.a -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
+  target_link_libraries(ms_cffi -Wl,-Bstatic -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
 endif()
-add_dependencies(ms_cffi libims)
 
 # export compilation database for autocompletion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
