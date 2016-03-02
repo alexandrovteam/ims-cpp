@@ -99,11 +99,15 @@ int detect_main(int argc, char** argv) {
 
   progressbar_finish(bar);
 
+  const auto sep = ",";
+
+  out << "formula,adduct,img,iso,moc\n";
+
   for (size_t i = 0; i < keys.size(); ++i) {
     std::string f = keys[i].first;
     std::string adduct = keys[i].second;
-    out << f << "\t" << adduct << "\t" <<
-      metrics[i].img_corr << "\t" << metrics[i].iso_corr << "\t" << metrics[i].moc << "\n";
+    out << f << sep << adduct << sep <<
+      metrics[i].img_corr << sep << metrics[i].iso_corr << sep << metrics[i].moc << "\n";
   }
 
   return 0;
