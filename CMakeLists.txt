@@ -151,5 +151,8 @@ else()
   target_link_libraries(ms_cffi -Wl,-Bstatic -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 
+add_library(imzb_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp)
+target_link_libraries(imzb_cffi ${BLOSC_LIBRARY} -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm)
+
 # export compilation database for autocompletion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)

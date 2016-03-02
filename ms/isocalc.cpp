@@ -263,7 +263,10 @@ namespace sf_parser {
           auto total = int(counter[item.first]) + mult * int(item.second);
           if (total < 0)
             throw NegativeTotalError(item.first, total);
-          counter[item.first] = total;
+          if (total == 0)
+            counter.erase(item.first);
+          else
+            counter[item.first] = total;
         }
       }
     }

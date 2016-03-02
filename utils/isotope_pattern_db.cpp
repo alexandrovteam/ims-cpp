@@ -30,14 +30,20 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
     if (adduct[0] != '-' && adduct[0] != '+')
       adduct = "+" + adduct;
     auto full_formula = f + adduct;
-    auto res = instrument.resolutionAt(ms::monoisotopicMass(full_formula));
-    auto pattern = ms::computeIsotopePattern(full_formula)\
-      .centroids(res).charged(charge).trimmed(max_peaks);
-    auto key = std::make_pair(f, adduct);
+    try {
+      auto res = instrument.resolutionAt(ms::monoisotopicMass(full_formula));
+      auto pattern = ms::computeIsotopePattern(full_formula)\
+        .centroids(res).charged(charge).trimmed(max_peaks);
+      auto key = std::make_pair(f, adduct);
+
+      std::lock_guard<std::mutex> lock(map_mutex);
+      patterns_[key]["mzs"] = pattern.masses;
+      patterns_[key]["abundances"] = pattern.abundances;
+    } catch (sf_parser::NegativeTotalError) {
+      // ignore formulas for which adduct subtraction is impossible
+    }
 
     std::lock_guard<std::mutex> lock(map_mutex);
-    patterns_[key]["mzs"] = pattern.masses;
-    patterns_[key]["abundances"] = pattern.abundances;
     if (bar != nullptr && (i + 1) % BAR_STEP == 0)
       progressbar_inc(bar);
   }
