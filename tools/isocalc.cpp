@@ -10,7 +10,35 @@
 #include <vector>
 #include <string>
 
-std::vector<std::string> decoy_adducts;
+void printAdducts(const std::vector<std::string>& adducts) {
+  for (auto& a: adducts) {
+    std::cout << a;
+    if (a != adducts.back())
+      std::cout << ", ";
+  }
+}
+
+std::vector<std::string> parseAdducts(const std::string& adducts_str) {
+  std::regex regex{","};
+  std::set<std::string> tmp{
+    std::sregex_token_iterator(adducts_str.begin(), adducts_str.end(), regex, -1),
+      std::sregex_token_iterator()};
+  std::set<std::string> adducts;
+  for (auto& a: tmp) {
+    bool has_sign = !a.empty() && (a[0] == '+' || a[0] == '-');
+    try {
+      sf_parser::parseSumFormula(a);
+    } catch (sf_parser::NegativeTotalError&) {
+      // ignore this error type for adducts
+    } catch (sf_parser::ParseError& e) {
+      // die if it raises a parsing error
+      std::cerr << "'" << a << "' is not a valid adduct!" << std::endl;
+      throw e;
+    }
+    adducts.insert(has_sign ? a : "+" + a);
+  }
+  return std::vector<std::string>{adducts.begin(), adducts.end()};
+}
 
 int isocalc_main(int argc, char** argv) {
 
@@ -19,7 +47,7 @@ int isocalc_main(int argc, char** argv) {
 
   std::string input_file, output_file;
 
-  std::string adducts_str;
+  std::string adducts_str, decoy_adducts_str;
 
   cxxopts::Options options("ims isocalc",
   " <input.txt> <output.db>\n\t\t\twhere input contains one sum formula per line.");
@@ -30,7 +58,8 @@ int isocalc_main(int argc, char** argv) {
      cxxopts::value<std::string>(adducts_str)->default_value("+H,+K,+Na"))
     ("max-peaks",       "Maximum number of peaks to store",
      cxxopts::value<unsigned>(max_peaks)->default_value("5"))
-    ("generate-decoy",  "Generate a decoy database")
+    ("decoy-adducts",  "Adducts for generating a decoy database (stored in a separate file named <output.db.decoy>)",
+     cxxopts::value<std::string>(decoy_adducts_str)->default_value(""))
     ("help", "Print help");
 
   options.add_options("hidden")
@@ -47,33 +76,12 @@ int isocalc_main(int argc, char** argv) {
     return 0;
   }
 
-  std::regex regex{","};
-  std::set<std::string> adducts_set{
-    std::sregex_token_iterator(adducts_str.begin(), adducts_str.end(), regex, -1),
-    std::sregex_token_iterator()};
-  std::set<std::string> tmp;
-  for (auto& adduct: adducts_set)
-    if (adduct[0] != '+' && adduct[0] != '-')
-      tmp.insert("+" + adduct);
-    else tmp.insert(adduct);
-  adducts_set.swap(tmp);
-  tmp.clear();
-  bool positive_mode = std::all_of(adducts_set.begin(), adducts_set.end(),
-                                   [](const std::string& s) { return s[0] == '+'; });
-  bool negative_mode = std::all_of(adducts_set.begin(), adducts_set.end(),
-                                   [](const std::string& s) { return s[0] == '-'; });
-  if (!positive_mode && !negative_mode) {
-    std::cerr << "all adducts must have the same sign" << std::endl;
-    return -2;
-  }
-  std::vector<std::string> target_adducts{adducts_set.begin(), adducts_set.end()};
+  auto target_adducts = parseAdducts(adducts_str);
+  auto decoy_adducts = parseAdducts(decoy_adducts_str);
 
   std::cout << "Resolution @ m/z=200: " << resolution << std::endl;
   std::cout << "Generating isotope pattern database for adducts ";
-  for (auto& a: target_adducts) {
-    std::cout << a;
-    if (a != target_adducts.back()) std::cout << ", ";
-  }
+  printAdducts(target_adducts);
   std::cout << "..." << std::endl;
 
   std::ifstream in(input_file);
@@ -97,12 +105,10 @@ int isocalc_main(int argc, char** argv) {
 
   std::cout << "Isotope patterns have been saved to " << output_file << std::endl;
 
-  if (options.count("generate-decoy")) {
-    auto sign = positive_mode ? "+" : "-";
-    for (const auto& item: ms::periodic_table)
-      if (adducts_set.find(sign + item.first) == adducts_set.end())
-        decoy_adducts.push_back(sign + item.first);
-    std::cout << "Generating decoy database..." << std::endl;
+  if (!decoy_adducts.empty()) {
+    std::cout << "Generating decoy database using adducts ";
+    printAdducts(decoy_adducts);
+    std::cout << "..." << std::endl;
     utils::IsotopePatternDB decoy_db{sum_formulas, decoy_adducts};
     utils::OrbitrapProfile orbitrap{resolution};
     std::ios_base::sync_with_stdio(true);
