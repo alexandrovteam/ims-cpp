@@ -119,7 +119,7 @@ int isocalc_main(int argc, char** argv) {
     std::ios_base::sync_with_stdio(true);
     decoy_db.useProgressBar(true);
     decoy_db.computeIsotopePatterns(orbitrap, max_peaks);
-    saveIsotopeDB(db, output_file + ".decoy");
+    saveIsotopeDB(decoy_db, output_file + ".decoy");
   }
 
   return 0;
