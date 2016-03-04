@@ -60,7 +60,7 @@ int detect_main(int argc, char** argv) {
   std::vector<ims::ImageF> images;
   std::vector<float> hotspot_removal_buf;
 
-  const int BAR_STEP = 50;
+  const int BAR_STEP = keys.size() > 10000 ? keys.size() / 100 : 100;
   auto bar = progressbar_new("Computing scores", keys.size() / BAR_STEP);
   std::mutex bar_mutex;
 

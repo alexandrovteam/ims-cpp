@@ -18,7 +18,7 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
   std::mutex map_mutex;
 
   progressbar* bar = nullptr;
-  const int BAR_STEP = 50;
+  const int BAR_STEP = 100;
   if (use_progressbar_)
     bar = progressbar_new("", pairs_.size() / BAR_STEP);
 
@@ -59,7 +59,10 @@ void IsotopePatternDB::save(const std::string& output_filename) {
   msgpack::sbuffer sbuf;
   msgpack::pack(sbuf, patterns_);
   std::ofstream db(output_filename, std::ios::binary);
-  db.write(sbuf.data(), sbuf.size());
+  if (db)
+    db.write(sbuf.data(), sbuf.size());
+  else
+    throw std::runtime_error("can't open " + output_filename + " for writing");
 }
 
 void IsotopePatternDB::load(const std::string& input_filename)

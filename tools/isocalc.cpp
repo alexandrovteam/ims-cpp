@@ -25,7 +25,9 @@ std::vector<std::string> parseAdducts(const std::string& adducts_str) {
       std::sregex_token_iterator()};
   std::set<std::string> adducts;
   for (auto& a: tmp) {
-    bool has_sign = !a.empty() && (a[0] == '+' || a[0] == '-');
+    if (a.empty())
+      continue;
+    bool has_sign = a[0] == '+' || a[0] == '-';
     try {
       sf_parser::parseSumFormula(a);
     } catch (sf_parser::NegativeTotalError&) {
@@ -38,6 +40,11 @@ std::vector<std::string> parseAdducts(const std::string& adducts_str) {
     adducts.insert(has_sign ? a : "+" + a);
   }
   return std::vector<std::string>{adducts.begin(), adducts.end()};
+}
+
+void saveIsotopeDB(utils::IsotopePatternDB& db, std::string output_fn) {
+  db.save(output_fn);
+  std::cout << "Isotope patterns have been saved to " << output_fn << std::endl;
 }
 
 int isocalc_main(int argc, char** argv) {
@@ -101,9 +108,7 @@ int isocalc_main(int argc, char** argv) {
   std::ios_base::sync_with_stdio(true);
   db.useProgressBar(true);
   db.computeIsotopePatterns(orbitrap, max_peaks);
-  db.save(output_file);
-
-  std::cout << "Isotope patterns have been saved to " << output_file << std::endl;
+  saveIsotopeDB(db, output_file);
 
   if (!decoy_adducts.empty()) {
     std::cout << "Generating decoy database using adducts ";
@@ -114,9 +119,7 @@ int isocalc_main(int argc, char** argv) {
     std::ios_base::sync_with_stdio(true);
     decoy_db.useProgressBar(true);
     decoy_db.computeIsotopePatterns(orbitrap, max_peaks);
-    decoy_db.save(output_file + ".decoy");
-
-    std::cout << "Isotope patterns have been saved to " << output_file << ".decoy" << std::endl;
+    saveIsotopeDB(db, output_file + ".decoy");
   }
 
   return 0;
