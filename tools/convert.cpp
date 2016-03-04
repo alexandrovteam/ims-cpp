@@ -80,14 +80,14 @@ class Sorter {
     std::cout << "done!" << std::endl;
   }
 
-  imzb::Mask mask_;
+  const imzb::Mask& mask_;
 public:
   Sorter(const std::string& filename, const imzb::Mask& mask,
          size_t buffer_size=10000000) :
-    fn_(filename),buffer_(buffer_size), filled_(0), closed_(false)
+    fn_(filename),buffer_(buffer_size), filled_(0), closed_(false),
+    mask_(mask)
   {
     std::cout << "dumping chunks sorted by m/z..." << std::endl;
-    mask_ = mask;
   }
 
   void addPeak(const ims::Peak& peak) {
@@ -121,12 +121,12 @@ int convert_main(int argc, char** argv) {
 
   ims::Spectrum sp;
   while (imzml.readNextSpectrum(sp)) {
+    mask.set(sp.coords.x, sp.coords.y);
     for (size_t i = 0; i < sp.mzs.size(); ++i) {
       // skip invalid (NaN) and zero peaks
       if (sp.mzs[i] > 0 && sp.intensities[i] > 0)
         sorter.addPeak(ims::Peak{sp.coords, sp.mzs[i], sp.intensities[i]});
     }
-    mask.set(sp.coords.x, sp.coords.y);
   }
   sorter.close();
   return 0;

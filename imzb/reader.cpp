@@ -6,6 +6,7 @@
 #include <cassert>
 #include <algorithm>
 #include <stdexcept>
+#include <sstream>
 
 imzb::ImzbReader::ImzbReader(const std::string& filename) :
     fn_(filename),
@@ -115,6 +116,8 @@ ims::Image<float> imzb::ImzbReader::image(double mz, double ppm) const
   return img;
 }
 
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 void imzb::ImzbReader::readImage(double mz, double ppm, float* image) const
 {
   auto idx = [&](size_t x, size_t y) { return ims::pixelIndex(x, y, width()); };
@@ -127,6 +130,22 @@ void imzb::ImzbReader::readImage(double mz, double ppm, float* image) const
         image[idx(i, j)] = 0.0;
 
   auto peaks = slice(mz - mz * ppm * 1e-6, mz + mz * ppm * 1e-6);
-  for (auto& peak: peaks)
+  for (auto& peak: peaks) {
+    if (unlikely(!index_->header.mask.hasSpectrumAt(peak.coords.x, peak.coords.y))) {
+      std::stringstream ss;
+      ss << "peak at x=" << peak.coords.x
+         << ", y=" << peak.coords.y << ", m/z=" << peak.mz
+         << " is outside the spatial mask";
+      throw std::runtime_error(ss.str());
+    }
+
+    if (unlikely(peak.intensity < 0)) {
+      std::stringstream ss;
+      ss << "negative intensity peak at x=" << peak.coords.x
+         << ", y=" << peak.coords.y << ", m/z=" << peak.mz;
+      throw std::runtime_error(ss.str());
+    }
+
     image[idx(peak.coords.x, peak.coords.y)] += peak.intensity;
+  }
 }

@@ -36,7 +36,7 @@ class Image {
 
   size_t countEmptyPixels() const {
     size_t n = 0;
-    for (auto& x: intensities_) if (x < 0) ++n;
+    for (auto& x: intensities_) if (x < -0.5) ++n;
     return n;
   }
 
