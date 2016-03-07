@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cassert>
 #include <algorithm>
+#include <stdexcept>
 
 namespace scils {
 
@@ -27,7 +28,7 @@ class H5Reader : public ims::AbstractReader {
 
   void readCoordinates() {
     hsize_t ndims[2] = {0};
-    std::string dataset = version() >= 5 ? "/Registration/0/Coordinates" : "Coordinates";
+    std::string dataset = version() >= 5 ? "/Registrations/0/Coordinates" : "Coordinates";
     H5LTget_dataset_info(file_, dataset.c_str(), ndims, NULL, NULL);
     assert(ndims[0] == 3);
     auto n = ndims[1];
@@ -77,7 +78,8 @@ public:
 
   int version() {
     int version;
-    assert(H5LTread_dataset_int(file_, "/Version", &version) >= 0);
+    if (H5LTread_dataset_int(file_, "/Version", &version) < 0)
+      throw std::runtime_error("couldn't read the format version");
     return version;
   }
 
