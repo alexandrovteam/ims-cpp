@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace ims {
 
@@ -26,5 +27,15 @@ struct Peak {
   double mz;
   float intensity;
 };
+
+class AbstractReader {
+public:
+  virtual bool readNextSpectrum(ims::Spectrum&) = 0;
+  virtual uint32_t height() const = 0;
+  virtual uint32_t width() const = 0;
+  virtual ~AbstractReader() {}
+};
+
+typedef std::shared_ptr<AbstractReader> AbstractReaderPtr;
 
 }

@@ -1,4 +1,10 @@
 #include "imzml/reader.hpp"
+#include "utils/string.hpp"
+
+#ifdef SCILS_H5
+#include "scils/h5reader.hpp"
+#endif
+
 #include "imzb/reader.hpp"
 #include "imzb/writer.hpp"
 
@@ -114,13 +120,23 @@ int convert_main(int argc, char** argv) {
     return 0;
   }
 
-  imzml::ImzmlReader imzml(argv[1]);
-  imzb::Mask mask{imzml.height(), imzml.width()};
+  ims::AbstractReaderPtr reader;
+  if (utils::endsWith(argv[1], ".imzML"))
+    reader = std::make_shared<imzml::ImzmlReader>(argv[1]);
+#ifdef SCILS_H5
+  else if (utils::endsWith(argv[1], ".h5"))
+    reader = std::make_shared<scils::H5Reader>(argv[1]);
+#endif
+  else {
+    std::cerr << "unsupported file extension" << std::endl;
+    return -3;
+  }
+  imzb::Mask mask{reader->height(), reader->width()};
 
   Sorter sorter(argv[2], mask);
 
   ims::Spectrum sp;
-  while (imzml.readNextSpectrum(sp)) {
+  while (reader->readNextSpectrum(sp)) {
     mask.set(sp.coords.x, sp.coords.y);
     for (size_t i = 0; i < sp.mzs.size(); ++i) {
       // skip invalid (NaN) and zero peaks

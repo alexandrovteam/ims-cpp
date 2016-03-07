@@ -58,7 +58,7 @@ struct LibXmlString {
 
 LibXmlString getAttribute(xmlTextReaderPtr, const char*);
 
-class ImzmlReader {
+class ImzmlReader final : public ims::AbstractReader {
   Metadata metadata_;
   std::string filename_;
   std::string ibd_filename_;
@@ -89,7 +89,7 @@ class ImzmlReader {
   void readIntValue(T& value) {
     value = getIntValue<T>();
   }
-  
+
   bool isNodeStart() const {
     return xmlTextReaderNodeType(xml_reader_) == XML_READER_TYPE_ELEMENT;
   }

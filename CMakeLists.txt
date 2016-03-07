@@ -140,6 +140,11 @@ else()
 endif()
 add_dependencies(ims-bin blosc libims msgpack progressbar)
 
+if ( SCILS_H5_SUPPORT)
+target_compile_definitions(ims-bin PRIVATE -DSCILS_H5)
+target_link_libraries(ims-bin -lhdf5 -lhdf5_hl)
+endif()
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/isotope_pattern.cpp ms/periodic_table.cpp)
