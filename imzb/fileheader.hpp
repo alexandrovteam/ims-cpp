@@ -25,7 +25,7 @@ struct Mask {
     data.resize(height * width / 64 + 1);
   }
 
-  bool hasSpectrumAt(uint32_t x, uint32_t y) {
+  bool hasSpectrumAt(uint32_t x, uint32_t y) const {
     assert(x < height && y < width);
     size_t n = x * width + y;
     return bool(data[n / 64] & (1ULL << (n % 64)));

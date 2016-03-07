@@ -6,6 +6,7 @@ void imzb_reader_free(ImzbReader);
 int imzb_reader_height(ImzbReader);
 int imzb_reader_width(ImzbReader);
 int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
+int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 
 typedef void* IsotopePattern;
 IsotopePattern isotope_pattern_new(int n, double* masses, double* abundances);

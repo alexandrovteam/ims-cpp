@@ -118,16 +118,20 @@ ims::Image<float> imzb::ImzbReader::image(double mz, double ppm) const
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
+static void initImage(float* image, const imzb::Mask& mask) {
+  for (size_t i = 0; i < mask.height; ++i)
+    for (size_t j = 0; j < mask.width; ++j) {
+      auto idx = ims::pixelIndex(i, j, mask.width);
+      if (!mask.hasSpectrumAt(i, j))
+        image[idx] = -1.0;
+      else
+        image[idx] = 0.0;
+    }
+}
+
 void imzb::ImzbReader::readImage(double mz, double ppm, float* image) const
 {
-  auto idx = [&](size_t x, size_t y) { return ims::pixelIndex(x, y, width()); };
-
-  for (size_t i = 0; i < height(); ++i)
-    for (size_t j = 0; j < width(); ++j)
-      if (!index_->header.mask.hasSpectrumAt(i, j))
-        image[idx(i, j)] = -1.0;
-      else
-        image[idx(i, j)] = 0.0;
+  initImage(image, index_->header.mask);
 
   auto peaks = slice(mz - mz * ppm * 1e-6, mz + mz * ppm * 1e-6);
   for (auto& peak: peaks) {
@@ -146,6 +150,31 @@ void imzb::ImzbReader::readImage(double mz, double ppm, float* image) const
       throw std::runtime_error(ss.str());
     }
 
-    image[idx(peak.coords.x, peak.coords.y)] += peak.intensity;
+    auto idx = ims::pixelIndex(peak.coords.x, peak.coords.y, width());
+    image[idx] += peak.intensity;
+  }
+}
+
+void imzb::ImzbReader::readCentroidedImage(double mz, double ppm, float* image) const
+{
+  initImage(image, index_->header.mask);
+
+  auto peaks = slice(mz - mz * ppm * 1e-6, mz + mz * ppm * 1e-6);
+
+  auto n = height() * width();
+  auto float_inf = std::numeric_limits<float>::infinity();
+  std::vector<double> m_prev(n), m_curr(n), m_next(n);
+  std::vector<float> i_prev(n, float_inf), i_curr(n, float_inf), i_next(n, float_inf);
+
+  for (auto& peak: peaks) {
+    auto i = ims::pixelIndex(peak.coords.x, peak.coords.y, width());
+
+    m_prev[i] = m_curr[i], i_prev[i] = i_curr[i];
+    m_curr[i] = m_next[i], i_curr[i] = i_next[i];
+    m_next[i] = peak.mz, i_next[i] = peak.intensity;
+
+    if (i_prev[i] < i_curr[i] && i_curr[i] >= i_next[i]) {
+      image[i] += i_curr[i];
+    }
   }
 }

@@ -28,4 +28,11 @@ extern "C" {
         return 0;
     });
   }
+
+  IMS_EXTERN int imzb_reader_centroided_image(imzb::ImzbReader* reader, double mz, double ppm, float* outbuf) {
+    return wrap_catch<int>(-1, [&]() -> int {
+        reader->readCentroidedImage(mz, ppm, outbuf);
+        return 0;
+      });
+  }
 }

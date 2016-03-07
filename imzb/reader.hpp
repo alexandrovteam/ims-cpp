@@ -43,7 +43,11 @@ public:
 
   ims::Image<float> image(double mz, double ppm) const;
 
+  // for centroided data
   void readImage(double mz, double ppm, float* image) const;
+
+  // for raw data
+  void readCentroidedImage(double mz, double ppm, float* image) const;
 
   uint32_t height() const { return index_->header.mask.height; }
   uint32_t width() const { return index_->header.mask.width; }
