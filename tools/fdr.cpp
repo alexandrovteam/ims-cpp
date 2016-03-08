@@ -5,8 +5,10 @@
 
 #include <iostream>
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <stdexcept>
 #include <fstream>
 #include <functional>
@@ -114,6 +116,7 @@ std::vector<float> estimateAverageFDR(const std::vector<Metrics>& target_metrics
 int fdr_main(int argc, char** argv) {
   std::string target_csv_fn, decoy_csv_fn, adduct, output_filename;
   unsigned n_repeats;
+  std::string groundtruth_filename;
 
   cxxopts::Options options("ims fdr", " <target_results.csv> <decoy_results.csv>");
   options.add_options()
@@ -121,8 +124,10 @@ int fdr_main(int argc, char** argv) {
      cxxopts::value<std::string>(output_filename)->default_value("/dev/stdout"))
     ("repeats", "Number of random subsampling runs used for FDR estimation",
      cxxopts::value<unsigned>(n_repeats)->default_value("100"))
-    ("adduct", "If specified, only use target results for a specific adduct",
+    ("adduct", "Only use target results for a specific adduct",
      cxxopts::value<std::string>(adduct)->default_value(""))
+    ("groundtruth", "CSV file with ground-truth formula/adduct pairs",
+     cxxopts::value<std::string>(groundtruth_filename)->default_value(""))
     ("help", "Print help");
 
   options.add_options("hidden")
@@ -151,9 +156,38 @@ int fdr_main(int argc, char** argv) {
 
   auto fdr = estimateAverageFDR(target_metrics, decoy_metrics, n_repeats);
   std::ofstream out(output_filename);
-  out << Metrics::header() << ",fdr" << std::endl;
-  for (size_t j = 0; j < target_metrics.size(); j++)
-    out << target_metrics[j] << "," << fdr[j] << std::endl;
+
+  if (groundtruth_filename.empty()) {
+    out << Metrics::header() << ",fdr" << std::endl;
+    for (size_t j = 0; j < target_metrics.size(); j++)
+      out << target_metrics[j] << "," << fdr[j] << std::endl;
+  } else {
+    std::set<std::pair<std::string, std::string>> groundtruth;
+
+    auto is_correct = [&](const Metrics& metrics) -> bool {
+      auto key = std::make_pair(metrics.sf, metrics.adduct);
+      return groundtruth.find(key) != groundtruth.end();
+    };
+
+    std::ifstream gt(groundtruth_filename);
+    std::string line;
+    while (std::getline(gt, line)) {
+      std::istringstream is(line);
+      std::string sf, adduct;
+      std::getline(is, sf, ',');
+      std::getline(is, adduct, ',');
+      groundtruth.insert(std::make_pair(sf, adduct));
+    }
+
+    out << Metrics::header() << ",est_fdr,true_fdr" << std::endl;
+    size_t true_hits = 0;
+
+    for (size_t j = 0; j < target_metrics.size(); j++) {
+      true_hits += is_correct(target_metrics[j]);
+      double true_fdr = double(j + 1 - true_hits) / double(j + 1);
+      out << target_metrics[j] << "," << fdr[j] << "," << true_fdr << std::endl;
+    }
+  }
 
   return 0;
 }
