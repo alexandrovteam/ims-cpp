@@ -14,9 +14,11 @@ namespace ims {
       return 0.0;
 
     auto n_empty_pixels = images[0].countEmptyPixels();
-    auto cov = [&](const ims::ImageF& i1, const ims::ImageF& i2) -> float {
+    auto cov = [&](const ims::ImageF& i1, const ims::ImageF& i2) -> double {
       // skip division as it cancels out in corr. coef. calculation
-      return (i1.intensities() * i2.intensities()).sum() - n_empty_pixels;
+      double result = std::inner_product(std::begin(i1.intensities()), std::end(i1.intensities()),
+                                         std::begin(i2.intensities()), double(0.0));
+      return result - n_empty_pixels;
     };
 
     auto principle_peak_norm = std::sqrt(cov(images[0], images[0]));
@@ -39,6 +41,7 @@ namespace ims {
       weighted_sum += correlations[i] * pattern.abundances[i + 1];
       total_weight += pattern.abundances[i + 1];
     }
+
     return weighted_sum / total_weight;
   }
 
