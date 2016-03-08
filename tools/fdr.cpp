@@ -179,13 +179,14 @@ int fdr_main(int argc, char** argv) {
       groundtruth.insert(std::make_pair(sf, adduct));
     }
 
-    out << Metrics::header() << ",est_fdr,true_fdr" << std::endl;
+    out << Metrics::header() << ",est_fdr,true_fdr,correct" << std::endl;
     size_t true_hits = 0;
 
     for (size_t j = 0; j < target_metrics.size(); j++) {
-      true_hits += is_correct(target_metrics[j]);
+      bool correct = is_correct(target_metrics[j]);
+      true_hits += correct;
       double true_fdr = double(j + 1 - true_hits) / double(j + 1);
-      out << target_metrics[j] << "," << fdr[j] << "," << true_fdr << std::endl;
+      out << target_metrics[j] << "," << fdr[j] << "," << true_fdr << "," << correct << std::endl;
     }
   }
 
