@@ -128,8 +128,10 @@ add_executable(ims-bin
   tools/convert.cpp
   tools/isocalc.cpp
   tools/detect.cpp
+  tools/fdr.cpp
   imzml/reader.cpp
-  utils/isotope_pattern_db.cpp)
+  utils/isotope_pattern_db.cpp
+  utils/metrics.cpp)
 set_target_properties(ims-bin PROPERTIES OUTPUT_NAME ims)
 if ( WIN32 )
   target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -lncurses -lxml2 -liconv libims -lfftw3 -lgomp -lwinpthread -lws2_32)

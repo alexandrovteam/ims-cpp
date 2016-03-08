@@ -2,6 +2,7 @@
 #include "imzb/reader.hpp"
 
 #include "utils/isotope_pattern_db.hpp"
+#include "utils/metrics.hpp"
 
 #include "cxxopts.hpp"
 extern "C" {
@@ -31,9 +32,9 @@ int detect_main(int argc, char** argv) {
   options.add_options()
     ("ppm", "m/z-window half-width in ppm",
      cxxopts::value<double>(ppm)->default_value("3.0"))
-    ("out", "",
+    ("out", "Output filename",
      cxxopts::value<std::string>(output_filename)->default_value("/dev/stdout"))
-    ("remove-hotspots", "apply hotspot removal prior to computing metrics",
+    ("remove-hotspots", "Apply hotspot removal prior to computing metrics",
      cxxopts::value<bool>(remove_hotspots)->default_value("true"))
     ("help", "Print help");
 
@@ -101,13 +102,16 @@ int detect_main(int argc, char** argv) {
 
   const auto sep = ",";
 
-  out << "formula,adduct,img,iso,moc\n";
+  out << utils::Metrics::header() << std::endl;
 
+  utils::Metrics m;
   for (size_t i = 0; i < keys.size(); ++i) {
-    std::string f = keys[i].first;
-    std::string adduct = keys[i].second;
-    out << f << sep << adduct << sep <<
-      metrics[i].img_corr << sep << metrics[i].iso_corr << sep << metrics[i].moc << "\n";
+    m.sf = keys[i].first;
+    m.adduct = keys[i].second;
+    m.img_corr = metrics[i].img_corr;
+    m.iso_corr = metrics[i].iso_corr;
+    m.chaos = metrics[i].moc;
+    out << m << "\n";
   }
 
   return 0;
