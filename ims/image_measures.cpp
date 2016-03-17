@@ -7,9 +7,9 @@
 
 namespace ims {
   double isotopeImageCorrelation(const ims::ImageF* images, size_t n,
-                                 const ms::IsotopePattern& pattern)
+                                 const std::vector<double>& abundances)
   {
-    assert(n <= pattern.size());
+    assert(n <= abundances.size());
     if (n < 2)
       return 0.0;
 
@@ -38,22 +38,22 @@ namespace ims {
 
     double weighted_sum = 0.0, total_weight = 0.0;
     for (size_t i = 0; i < correlations.size(); i++) {
-      weighted_sum += correlations[i] * pattern.abundances[i + 1];
-      total_weight += pattern.abundances[i + 1];
+      weighted_sum += correlations[i] * abundances[i + 1];
+      total_weight += abundances[i + 1];
     }
 
     return weighted_sum / total_weight;
   }
 
   double isotopeImageCorrelation(const std::vector<ims::ImageF>& images,
-                                 const ms::IsotopePattern& pattern)
+                                 const std::vector<double>& abundances)
   {
-    return isotopeImageCorrelation(&images[0], images.size(), pattern);
+    return isotopeImageCorrelation(&images[0], images.size(), abundances);
   }
 
   double isotopePatternMatch(const ims::ImageF* images, size_t n,
-                             const ms::IsotopePattern& pattern) {
-    assert(n <= pattern.size());
+                             const std::vector<double>& abundances) {
+    assert(n <= abundances.size());
     std::valarray<float> total_intensities(n), expected(n);
     double norm_squared1 = 0.0, norm_squared2 = 0.0;
     for (size_t i = 0; i < n; ++i) {
@@ -63,7 +63,7 @@ namespace ims {
         total_intensities[i] += images[i].intensities()[j];
       }
       norm_squared1 += std::pow(total_intensities[i], 2);
-      expected[i] = pattern.abundances[i];
+      expected[i] = abundances[i];
       norm_squared2 += std::pow(expected[i], 2);
     }
     if (std::fabs(norm_squared1) < 1e-6)
@@ -77,8 +77,8 @@ namespace ims {
   }
 
   double isotopePatternMatch(const std::vector<ims::ImageF>& images,
-                             const ms::IsotopePattern& pattern) {
-    return isotopePatternMatch(&images[0], images.size(), pattern);
+                             const std::vector<double>& abundances) {
+    return isotopePatternMatch(&images[0], images.size(), abundances);
   }
 
   double measureOfChaos(const ims::ImageF& image, size_t n_levels) {

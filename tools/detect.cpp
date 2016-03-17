@@ -88,8 +88,8 @@ int detect_main(int argc, char** argv) {
         images[j].removeHotspots(99.0, &hotspot_removal_buf[0]);
     }
 
-    auto img_corr = ims::isotopeImageCorrelation(&images[0], p.size(), p);
-    auto iso_corr = ims::isotopePatternMatch(&images[0], p.size(), p);
+    auto img_corr = ims::isotopeImageCorrelation(&images[0], p.size(), p.abundances);
+    auto iso_corr = ims::isotopePatternMatch(&images[0], p.size(), p.abundances);
     auto moc = ims::measureOfChaos(images[0], 30);
     metrics[i] = Metrics{img_corr, iso_corr, moc};
 

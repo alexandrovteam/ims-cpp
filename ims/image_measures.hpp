@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ims/image.hpp"
-#include "ms/isotope_pattern.hpp"
 
 #include <vector>
 #include <valarray>
@@ -11,16 +10,16 @@
 namespace ims {
 
   double isotopeImageCorrelation(const ims::ImageF* images, size_t n,
-                                 const ms::IsotopePattern& pattern);
+                                 const std::vector<double>& abundances);
 
   double isotopeImageCorrelation(const std::vector<ims::ImageF>& images,
-                                 const ms::IsotopePattern& pattern);
+                                 const std::vector<double>& abundances);
 
   double isotopePatternMatch(const ims::ImageF* images, size_t n,
-                             const ms::IsotopePattern& pattern);
+                             const std::vector<double>& pattern);
 
   double isotopePatternMatch(const std::vector<ims::ImageF>& images,
-      const ms::IsotopePattern& pattern);
+                             const std::vector<double>& pattern);
 
   double measureOfChaos(const ims::ImageF& image, size_t n_levels=32);
 }

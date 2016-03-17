@@ -161,5 +161,8 @@ endif()
 add_library(imzb_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp)
 target_link_libraries(imzb_cffi ${BLOSC_LIBRARY} -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm)
 
+add_library(ims_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp cffi/image_measures.cpp ims/image_measures.cpp)
+target_link_libraries(ims_cffi ${BLOSC_LIBRARY} -Wl,-Bstatic libims -lstdc++ -Wl,-Bdynamic -lm)
+
 # export compilation database for autocompletion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
