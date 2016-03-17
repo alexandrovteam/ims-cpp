@@ -4,20 +4,30 @@
 #include <cstdint>
 #include <limits>
 #include <cstring>
+#include <valarray>
 
 namespace ims {
   double isotopeImageCorrelation(const ims::ImageF* images, size_t n,
-                                 const std::vector<double>& abundances)
+                                 const std::vector<double>& abundances,
+                                 bool zero_mean_normalization)
   {
     assert(n <= abundances.size());
     if (n < 2)
       return 0.0;
 
     auto n_empty_pixels = images[0].countEmptyPixels();
+
     auto cov = [&](const ims::ImageF& i1, const ims::ImageF& i2) -> double {
       // skip division as it cancels out in corr. coef. calculation
       double result = std::inner_product(std::begin(i1.intensities()), std::end(i1.intensities()),
                                          std::begin(i2.intensities()), double(0.0));
+
+      if (zero_mean_normalization) {
+        auto total1 = i1.intensities().sum() + n_empty_pixels;
+        auto total2 = i2.intensities().sum() + n_empty_pixels;
+        result -= total1 * total2 / (i1.intensities().size() - n_empty_pixels);
+      }
+
       return result - n_empty_pixels;
     };
 
@@ -46,9 +56,11 @@ namespace ims {
   }
 
   double isotopeImageCorrelation(const std::vector<ims::ImageF>& images,
-                                 const std::vector<double>& abundances)
+                                 const std::vector<double>& abundances,
+                                 bool zero_mean_normalization)
   {
-    return isotopeImageCorrelation(&images[0], images.size(), abundances);
+    return isotopeImageCorrelation(&images[0], images.size(), abundances,
+                                   zero_mean_normalization);
   }
 
   double isotopePatternMatch(const ims::ImageF* images, size_t n,
