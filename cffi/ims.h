@@ -27,8 +27,8 @@ void isotope_pattern_free(IsotopePattern);
 double measure_of_chaos_f(float* image, int width, int height, int n_levels);
 double measure_of_chaos_d(double* image, int width, int height, int n_levels);
 
-double iso_img_correlation_f(float** images, int n, int width, int height, IsotopePattern isotope_pattern);
-double iso_img_correlation_d(double** images, int n, int width, int height, IsotopePattern isotope_pattern);
+double iso_img_correlation_f(float** images, int n, int width, int height, double* isotope_abundances);
+double iso_img_correlation_d(double** images, int n, int width, int height, double* isotope_abundances);
 
-double pattern_match_f(float** images, int n, int width, int height, IsotopePattern isotope_pattern);
-double pattern_match_d(double** images, int n, int width, int height, IsotopePattern isotope_pattern);
+double pattern_match_f(float** images, int n, int width, int height, double* isotope_abundances);
+double pattern_match_d(double** images, int n, int width, int height, double* isotope_abundances);
