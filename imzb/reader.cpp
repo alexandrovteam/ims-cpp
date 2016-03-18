@@ -36,7 +36,6 @@ size_t imzb::ImzbReader::decompressBlock(size_t block_idx,
   assert(block_idx + 1 < index_->offsets.size());
   uint64_t start = index_->offsets[block_idx];
   uint64_t end = index_->offsets[block_idx + 1];
-  assert(start > 0);
   assert(start < end);
   inbuf.resize(end - start);
   in.seekg(start);
