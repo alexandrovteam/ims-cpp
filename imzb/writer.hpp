@@ -11,9 +11,6 @@
 namespace imzb {
 
 class ImzbWriter {
-public:
-  static const uint32_t BLOCK_SIZE = 4096;
-
 private:
   std::ofstream out_;
   imzb::Index index_;
@@ -27,8 +24,15 @@ private:
 
   std::string filename_;
 
+  uint32_t block_size_;
+
+  std::string compressor_;
+  uint8_t comp_level_;
+
 public:
-  ImzbWriter(const std::string& filename);
+  ImzbWriter(const std::string& filename, uint32_t block_size=4096,
+             const std::string& compressor="blosclz",
+             uint8_t compression_level=5);
 
   void setMask(const imzb::Mask& mask) {
     index_.header.mask = mask;

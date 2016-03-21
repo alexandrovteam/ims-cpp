@@ -1,6 +1,8 @@
 #include "imzml/reader.hpp"
 #include "utils/string.hpp"
 
+#include "cxxopts.hpp"
+
 #ifdef SCILS_H5
 #include "scils/h5reader.hpp"
 #endif
@@ -23,6 +25,9 @@ class Sorter {
   std::vector<std::string> tmp_filenames_;
   size_t filled_;
   bool closed_;
+  uint32_t block_size_;
+  std::string compressor_;
+  uint8_t comp_level_;
 
   void dump() {
     std::sort(buffer_.begin(), buffer_.begin() + filled_,
@@ -31,7 +36,7 @@ class Sorter {
     std::stringstream tmp_fn;
     tmp_fn << fn_ << "." << tmp_filenames_.size();
     tmp_filenames_.push_back(tmp_fn.str());
-    imzb::ImzbWriter writer(tmp_filenames_.back());
+    imzb::ImzbWriter writer(tmp_filenames_.back(), block_size_, "blosclz");
     writer.setMask(mask_);
     for (size_t i = 0; i < filled_; ++i)
       writer.writePeak(buffer_[i]);
@@ -54,7 +59,7 @@ class Sorter {
     std::priority_queue<PeakAndFile> queue;
 
     std::vector<std::shared_ptr<imzb::ImzbReader>> readers;
-    imzb::ImzbWriter writer(fn_);
+    imzb::ImzbWriter writer(fn_, block_size_, compressor_, comp_level_);
     writer.setMask(mask_);
 
     ims::Peak peak;
@@ -64,9 +69,11 @@ class Sorter {
         queue.push(PeakAndFile{peak, readers.size() - 1});
     }
 
+    size_t n = 0;
     while (!queue.empty()) {
       auto item = queue.top();
       writer.writePeak(item.peak);
+      ++n;
       queue.pop();
 
       if (readers[item.file_index]->readNext(peak))
@@ -89,8 +96,11 @@ class Sorter {
   const imzb::Mask& mask_;
 public:
   Sorter(const std::string& filename, const imzb::Mask& mask,
-         size_t buffer_size=10000000) :
-    fn_(filename),buffer_(buffer_size), filled_(0), closed_(false),
+         size_t buffer_size, uint32_t block_size,
+         const std::string& compressor,
+         uint8_t compression_level) :
+    fn_(filename), buffer_(buffer_size), filled_(0), closed_(false),
+    block_size_(block_size), compressor_(compressor), comp_level_(compression_level),
     mask_(mask)
   {
     std::cout << "dumping chunks sorted by m/z..." << std::endl;
@@ -115,17 +125,40 @@ public:
 };
 
 int convert_main(int argc, char** argv) {
-  if (argc < 3) {
-    std::cout << "Usage: ims convert <file.imzML> <out.imzb>" << std::endl;
+  std::string input_filename, output_filename, compressor;
+  uint32_t block_size;
+  size_t buffer_size = 10000000;
+  int compression_level;
+
+  cxxopts::Options options("ims convert", " <input.imzML> <output.imzb>");
+  options.add_options()
+    ("block-size", "maximum number of records in a compressed block; larger values lead to slower m/z queries but smaller file size",
+     cxxopts::value<uint32_t>(block_size)->default_value("4096"))
+    ("compressor", "blosc compressor to be used",
+     cxxopts::value<std::string>(compressor)->default_value("blosclz"))
+    ("compression-level", "compression level (0-9)",
+     cxxopts::value<int>(compression_level)->default_value("5"))
+    ("help", "Print help");
+
+  options.add_options("hidden")
+    ("in", "", cxxopts::value<std::string>(input_filename))
+    ("out", "", cxxopts::value<std::string>(output_filename));
+
+  options.parse_positional(std::vector<std::string>{"in", "out"});
+
+  options.parse(argc, argv);
+
+  if (options.count("help") || input_filename.empty() || output_filename.empty()) {
+    std::cout << options.help({""}) << std::endl;
     return 0;
   }
 
   ims::AbstractReaderPtr reader;
-  if (utils::endsWith(argv[1], ".imzML"))
-    reader = std::make_shared<imzml::ImzmlReader>(argv[1]);
+  if (utils::endsWith(input_filename, ".imzML"))
+    reader = std::make_shared<imzml::ImzmlReader>(input_filename);
 #ifdef SCILS_H5
-  else if (utils::endsWith(argv[1], ".h5"))
-    reader = std::make_shared<scils::H5Reader>(argv[1]);
+  else if (utils::endsWith(input_filename, ".h5"))
+    reader = std::make_shared<scils::H5Reader>(input_filename);
 #endif
   else {
     std::cerr << "unsupported file extension" << std::endl;
@@ -133,7 +166,8 @@ int convert_main(int argc, char** argv) {
   }
   imzb::Mask mask{reader->height(), reader->width()};
 
-  Sorter sorter(argv[2], mask);
+  Sorter sorter(output_filename, mask, buffer_size, block_size,
+                compressor, compression_level);
 
   ims::Spectrum sp;
   while (reader->readNextSpectrum(sp)) {

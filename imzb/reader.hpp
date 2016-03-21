@@ -1,8 +1,8 @@
 #pragma once
 
+#include "ims/ims.hpp"
 #include "ims/image.hpp"
 #include "imzb/index.hpp"
-#include "imzb/writer.hpp"
 
 #include <string>
 #include <fstream>

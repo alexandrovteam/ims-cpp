@@ -43,6 +43,9 @@ struct FileHeader {
   uint32_t width() const { return mask.width; }
   Mask mask;
 
+  uint32_t version;
+  uint32_t block_size;
+
   void read(std::ifstream& stream) {
     uint64_t pos = stream.tellg();
 
@@ -54,16 +57,30 @@ struct FileHeader {
     stream.read(reinterpret_cast<char*>(&mask.data[0]),
                 mask.data.size() * sizeof(uint64_t));
 
+    if (stream.tellg() == pos + header_len) {
+      version = 0;
+      block_size = 4096;
+    } else {
+      binary_read(stream, version);
+      if (version >= 1)
+        binary_read(stream, block_size);
+    }
+
     stream.seekg(pos + header_len, std::ios::beg);
   }
 
   void write(std::ofstream& stream) {
     uint32_t header_len = 3 * 4 + mask.data.size() * sizeof(uint64_t);
+    header_len += sizeof(version) + sizeof(block_size);
+
     binary_write(stream, header_len);
     binary_write(stream, mask.height);
     binary_write(stream, mask.width);
     stream.write(reinterpret_cast<char*>(&mask.data[0]),
                  mask.data.size() * sizeof(uint64_t));
+
+    binary_write(stream, version);
+    binary_write(stream, block_size);
   }
 };
 

@@ -10,7 +10,7 @@
 
 imzb::ImzbReader::ImzbReader(const std::string& filename) :
     fn_(filename),
-    in_(filename, std::ios::binary), block_idx_(0), peaks_(imzb::ImzbWriter::BLOCK_SIZE),
+    in_(filename, std::ios::binary), block_idx_(0),
     n_peaks_(0), pos_(0), empty_(false)
 {
   std::ifstream in_idx(filename + ".idx", std::ios::binary);
@@ -26,6 +26,8 @@ imzb::ImzbReader::ImzbReader(const std::string& filename) :
   index_->offsets.push_back(in_.tellg());
 
   in_.seekg(0, in_.beg);
+
+  peaks_.resize(index_->header.block_size);
 }
 
 size_t imzb::ImzbReader::decompressBlock(size_t block_idx,
@@ -48,7 +50,6 @@ size_t imzb::ImzbReader::decompressBlock(size_t block_idx,
 
 bool imzb::ImzbReader::readNextBlock()
 {
-  ++block_idx_;
   if (block_idx_ == index_->mzs.size()) {
     n_peaks_ = 0;
     return false;
@@ -56,6 +57,7 @@ bool imzb::ImzbReader::readNextBlock()
 
   n_peaks_ = decompressBlock(block_idx_, in_, buffer_, peaks_);
   pos_ = 0;
+  ++block_idx_;
   return true;
 }
 
@@ -87,7 +89,7 @@ std::vector<ims::Peak> imzb::ImzbReader::slice(double min_mz, double max_mz) con
 {
   assert(min_mz < max_mz);
   std::vector<char> inbuf;
-  std::vector<ims::Peak> result, outbuf{imzb::ImzbWriter::BLOCK_SIZE};
+  std::vector<ims::Peak> result, outbuf{index_->header.block_size};
   size_t start_block = index_->startBlock(min_mz);
   size_t end_block = index_->endBlock(max_mz);
   std::ifstream in{fn_, std::ios::binary};
@@ -95,10 +97,13 @@ std::vector<ims::Peak> imzb::ImzbReader::slice(double min_mz, double max_mz) con
   for (size_t i = start_block; i < end_block; ++i) {
     size_t n = decompressBlock(i, in, inbuf, outbuf);
     auto beg = outbuf.cbegin(), end = outbuf.cbegin() + n;
-    if (outbuf.front().mz < min_mz)
+    if (beg == end)
+      continue;
+    auto first_mz = beg->mz, last_mz = (end - 1)->mz;
+    if (first_mz < min_mz)
       beg = std::lower_bound(beg, end, min_mz,
           [](const ims::Peak& p, double mz) { return p.mz < mz; });
-    if (outbuf.back().mz > max_mz)
+    if (last_mz > max_mz)
       end = std::upper_bound(beg, end, max_mz,
           [](double mz, const ims::Peak& p) { return mz < p.mz; });
     result.insert(result.end(), beg, end);
