@@ -10,6 +10,13 @@
 
 namespace imzb {
 
+struct ImzbCompressionSettings {
+  std::string compressor = "blosclz";
+  uint8_t compression_level = 5;
+
+  uint32_t block_size = 4096;
+};
+
 class ImzbWriter {
 private:
   std::ofstream out_;
@@ -24,15 +31,11 @@ private:
 
   std::string filename_;
 
-  uint32_t block_size_;
-
-  std::string compressor_;
-  uint8_t comp_level_;
+  ImzbCompressionSettings c_;
 
 public:
-  ImzbWriter(const std::string& filename, uint32_t block_size=4096,
-             const std::string& compressor="blosclz",
-             uint8_t compression_level=5);
+  ImzbWriter(const std::string& filename,
+             const ImzbCompressionSettings& compression_settings=ImzbCompressionSettings());
 
   void setMask(const imzb::Mask& mask) {
     index_.header.mask = mask;
