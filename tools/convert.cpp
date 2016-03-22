@@ -171,6 +171,11 @@ int convert_main(int argc, char** argv) {
 
   ims::Spectrum sp;
   while (reader->readNextSpectrum(sp)) {
+    if (sp.coords.x >= reader->height() || sp.coords.y >= reader->width()) {
+      std::cerr << "WARNING: skipped spectrum with invalid coordinates ("
+                << int32_t(sp.coords.x) << ", " << int32_t(sp.coords.y) << ")" << std::endl;
+      continue;
+    }
     mask.set(sp.coords.x, sp.coords.y);
     for (size_t i = 0; i < sp.mzs.size(); ++i) {
       // skip invalid (NaN) and zero peaks
