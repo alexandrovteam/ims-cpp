@@ -96,6 +96,11 @@ class ImzmlReader final : public ims::AbstractReader {
 
   template <typename T>
   void readExternalArray(const ExternalArray& array, std::vector<T>& buffer) {
+    if (array.length == 0) {
+      buffer.resize(0);
+      return;
+    }
+
     if (array.encoded_length / array.length == 4)
       readExternalArrayHelper<float, T>(array, buffer);
     else if (array.encoded_length / array.length == 8)
