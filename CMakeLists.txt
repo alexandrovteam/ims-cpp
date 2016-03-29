@@ -155,7 +155,7 @@ if ( WIN32 )
 elseif ( APPLE )
   target_link_libraries(ms_cffi /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ms_cffi -Wl,-Bstatic -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
+  target_link_libraries(ms_cffi -Wl,-Bsymbolic-functions -Wl,-Bstatic -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 
 add_library(imzb_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp)
