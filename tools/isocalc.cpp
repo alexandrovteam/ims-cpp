@@ -9,6 +9,7 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <memory>
 
 void printAdducts(const std::vector<std::string>& adducts) {
   for (auto& a: adducts) {
@@ -53,8 +54,8 @@ int isocalc_main(int argc, char** argv) {
   unsigned max_peaks;
 
   std::string input_file, output_file;
-
   std::string adducts_str, decoy_adducts_str;
+  std::string instrument_type;
 
   cxxopts::Options options("ims isocalc",
   " <input.txt> <output.db>\n\t\t\twhere input contains one sum formula per line.");
@@ -67,6 +68,8 @@ int isocalc_main(int argc, char** argv) {
      cxxopts::value<unsigned>(max_peaks)->default_value("5"))
     ("decoy-adducts",  "Adducts for generating a decoy database (stored in a separate file named <output.db.decoy>)",
      cxxopts::value<std::string>(decoy_adducts_str)->default_value(""))
+    ("instrument",     "Instrument type (orbitrap|fticr)",
+     cxxopts::value<std::string>(instrument_type)->default_value("orbitrap"))
     ("help", "Print help");
 
   options.add_options("hidden")
@@ -81,6 +84,17 @@ int isocalc_main(int argc, char** argv) {
   if (options.count("help") || input_file.empty() || output_file.empty()) {
     std::cout << options.help({""}) << std::endl;
     return 0;
+  }
+
+  using InstrumentProfilePtr = std::unique_ptr<utils::InstrumentProfile>;
+  InstrumentProfilePtr instrument;
+  if (instrument_type == "orbitrap")
+    instrument = InstrumentProfilePtr(new utils::OrbitrapProfile{resolution});
+  else if (instrument_type == "fticr")
+    instrument = InstrumentProfilePtr(new utils::FTICRProfile(resolution));
+  else {
+    std::cerr << "unknown instrument type: " << instrument_type << std::endl;
+    return -1;
   }
 
   auto target_adducts = parseAdducts(adducts_str);
@@ -104,10 +118,9 @@ int isocalc_main(int argc, char** argv) {
   }
 
   utils::IsotopePatternDB db{sum_formulas, target_adducts};
-  utils::OrbitrapProfile orbitrap{resolution};
   std::ios_base::sync_with_stdio(true);
   db.useProgressBar(true);
-  db.computeIsotopePatterns(orbitrap, max_peaks);
+  db.computeIsotopePatterns(*instrument, max_peaks);
   saveIsotopeDB(db, output_file);
 
   if (!decoy_adducts.empty()) {
@@ -115,10 +128,9 @@ int isocalc_main(int argc, char** argv) {
     printAdducts(decoy_adducts);
     std::cout << "..." << std::endl;
     utils::IsotopePatternDB decoy_db{sum_formulas, decoy_adducts};
-    utils::OrbitrapProfile orbitrap{resolution};
     std::ios_base::sync_with_stdio(true);
     decoy_db.useProgressBar(true);
-    decoy_db.computeIsotopePatterns(orbitrap, max_peaks);
+    decoy_db.computeIsotopePatterns(*instrument, max_peaks);
     saveIsotopeDB(decoy_db, output_file + ".decoy");
   }
 

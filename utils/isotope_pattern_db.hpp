@@ -8,6 +8,7 @@
 #include <fstream>
 #include <cassert>
 #include <iostream>
+#include <cmath>
 
 namespace utils {
 
@@ -25,10 +26,25 @@ public:
   {}
 
   double resolutionAt(double mz) const {
-    return resolution_200_ * (200.0 / mz);
+    return resolution_200_ * sqrt(200.0 / mz);
   }
 
   OrbitrapProfile() {
+  }
+};
+
+class FTICRProfile : public InstrumentProfile {
+  double resolution_200_;
+public:
+  FTICRProfile(double resolution_at_200) :
+    resolution_200_(resolution_at_200)
+  {}
+
+  double resolutionAt(double mz) const {
+    return resolution_200_ * 200.0 / mz;
+  }
+
+  FTICRProfile() {
   }
 };
 
@@ -82,7 +98,7 @@ public:
 
   void useProgressBar(bool use) {
     use_progressbar_ = use;
-  } 
+  }
 
   size_t size() const {
     assert(patterns_.size() == pairs_.size());
