@@ -94,7 +94,7 @@ std::vector<float> estimateFDR(const std::vector<Metrics>& target_metrics,
 
     if (verbose)
       std::cout << "\x1b[32mTARGET \x1b[39m" << m
-                << "\t" << fdr.back() << "\t" << std::endl;
+                << "," << fdr.back() << std::endl;
   }
   return fdr;
 }
@@ -132,7 +132,8 @@ int fdr_main(int argc, char** argv) {
 
   options.add_options("hidden")
     ("target_csv", "", cxxopts::value<std::string>(target_csv_fn))
-    ("decoy_csv", "", cxxopts::value<std::string>(decoy_csv_fn));
+    ("decoy_csv", "", cxxopts::value<std::string>(decoy_csv_fn))
+    ("debug", "");
 
   options.parse_positional(std::vector<std::string>{"target_csv", "decoy_csv"});
 
@@ -153,6 +154,11 @@ int fdr_main(int argc, char** argv) {
   }
 
   rng.seed(std::random_device{}());
+
+  if (options.count("debug")) {
+    estimateFDR(target_metrics, decoy_metrics, 25, /* verbose= */ true);
+    return 0;
+  }
 
   auto fdr = estimateAverageFDR(target_metrics, decoy_metrics, n_repeats);
   std::ofstream out(output_filename);
