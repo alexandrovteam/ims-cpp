@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <stdexcept>
+#include <algorithm>
 #include <limits>
 #include <tuple>
 #include <cassert>
@@ -39,6 +40,12 @@ namespace ms {
         abundances.resize(new_size);
       }
       return *this;
+    }
+
+    IsotopePattern& removeAbundancesBelow(double min_abundance) {
+      auto it = std::upper_bound(abundances.begin(), abundances.end(), min_abundance,
+                                 std::greater<double>());
+      return this->trimmed(it - abundances.begin());
     }
 
     IsotopePattern copy() const {

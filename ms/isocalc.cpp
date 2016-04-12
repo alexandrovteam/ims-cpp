@@ -134,7 +134,7 @@ namespace ms {
       }
     }
 
-    return result;
+    return result.removeAbundancesBelow(threshold);
   }
 
   IsotopePattern computeIsotopePattern(const std::string& sum_formula,
