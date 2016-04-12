@@ -5,7 +5,6 @@
 #include <vector>
 #include <valarray>
 #include <cassert>
-#include <iostream>
 
 namespace ims {
 
