@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <functional>
 
 namespace ms {
 
@@ -15,46 +16,75 @@ void IsotopePattern::addCharge(int charge) {
     m -= charge * ms::electronMass;
 }
 
+static bool isNormalized(const IsotopePattern& p) {
+  if (p.abundances[0] != 1.0)
+    return false;
+  for (size_t i = 1; i < p.size(); i++)
+    if (p.abundances[i - 1] < p.abundances[i])
+      return false;
+  return true;
+}
+
 IsotopePattern IsotopePattern::multiply(const IsotopePattern& other, double threshold) const {
   if (this->isUnit()) return other;
   if (other.isUnit()) return *this;
 
   const auto& p1 = *this, p2 = other;
   size_t n1 = p1.size(), n2 = p2.size();
+
+  assert(isNormalized(p1));
+  assert(isNormalized(p2));
+
   IsotopePattern result;
+
   for (size_t i = 0; i < n1; i++)
     for (size_t j = 0; j < n2; j++) {
       auto abundance = p1.abundances[i] * p2.abundances[j];
       if (abundance > threshold) {
         result.masses.push_back(p1.masses[i] + p2.masses[j]);
         result.abundances.push_back(abundance);
+      } else {
+        if (j == 0)
+          break;
+        n2 = j;
       }
     }
   result.normalize();
   return result;
 }
 
+static void sortIsotopePattern(std::vector<double>& masses, std::vector<double>& abundances,
+                               std::function<bool(size_t, size_t)> cmp)
+{
+  auto n = masses.size();
+  std::vector<size_t> index(masses.size());
+  std::iota(index.begin(), index.end(), 0);
+  std::sort(index.begin(), index.end(), cmp);
+  std::vector<double> tmp(n);
+  for (size_t i = 0; i < n; i++)
+    tmp[i] = masses[index[i]];
+  masses.swap(tmp);
+
+  for (size_t i = 0; i < n; i++)
+    tmp[i] = abundances[index[i]];
+  abundances.swap(tmp);
+}
+
 void IsotopePattern::normalize() {
-  for (size_t i = 0; i < size(); i++)
-    for (size_t j = i + 1; j < size(); j++)
-      if (abundances[i] < abundances[j]) {
-        std::swap(abundances[i], abundances[j]);
-        std::swap(masses[i], masses[j]);
-      }
+  sortIsotopePattern(masses, abundances, [&](size_t i, size_t j) {
+    return abundances[i] > abundances[j];
+  });
   auto top = abundances[0];
-  assert(top > 0);
-  for (auto& item: abundances)
-    item /= top;
+  if (top > 0)
+    for (auto& item: abundances)
+      item /= top;
 }
 
 IsotopePattern sortByMass(const ms::IsotopePattern& p) {
   IsotopePattern result = p;
-  for (size_t i = 0; i < result.size(); i++)
-    for (size_t j = i + 1; j < result.size(); j++)
-      if (result.masses[i] > result.masses[j]) {
-        std::swap(result.abundances[i], result.abundances[j]);
-        std::swap(result.masses[i], result.masses[j]);
-      }
+  sortIsotopePattern(result.masses, result.abundances, [&](size_t i, size_t j) {
+    return result.masses[i] < result.masses[j];
+  });
   return result;
 }
 
@@ -126,25 +156,38 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
   EnvelopeGenerator envelope(*this, resolution, width);
 
   std::array<double, centroid_bins> mz_window, int_window;
-  size_t center = centroid_bins / 2;
+  size_t center = centroid_bins / 2, last_idx = centroid_bins - 1;
   mz_window[center] = min_mz + pad - width * sigma;
   for (size_t j = 0; j < centroid_bins; j++) {
     mz_window[j] = mz_window[center] + (int(j) - int(center)) * step;
     int_window[j] = envelope(mz_window[j]);
   }
 
+  auto prev = [&](size_t idx) { return idx > 0 ? idx - 1 : centroid_bins - 1; };
+  auto next = [&](size_t idx) { return idx == centroid_bins - 1 ? 0 : idx + 1; };
+  auto rotateWindows = [&](int shift) -> void {
+    auto abs_shift = (shift + int(centroid_bins)) % centroid_bins;
+    std::rotate(mz_window.begin(),
+                mz_window.begin() + abs_shift, mz_window.end());
+    std::rotate(int_window.begin(),
+                int_window.begin() + abs_shift, int_window.end());
+  };
+
   ms::IsotopePattern result;
   for (;;) {
-    std::rotate(mz_window.begin(), mz_window.begin() + 1, mz_window.end());
-    std::rotate(int_window.begin(), int_window.begin() + 1, int_window.end());
-    mz_window.back() = mz_window[centroid_bins - 2] + step;
-    if (mz_window.back() > max_mz)
+    center = next(center);
+
+    auto next_mz = mz_window[last_idx] + step;
+    if (next_mz > max_mz)
       break;
-    int_window.back() = envelope(mz_window.back());
+
+    last_idx = next(last_idx);
+    mz_window[last_idx] = next_mz;
+    int_window[last_idx] = envelope(next_mz);
 
     // check if it's a local maximum
-    if (!(int_window[center - 1] < int_window[center] &&
-          int_window[center] >= int_window[center + 1]))
+    if (!(int_window[prev(center)] < int_window[center] &&
+          int_window[center] >= int_window[next(center)]))
       continue;
 
     // skip low-intensity peaks
@@ -152,8 +195,11 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
       continue;
 
     double m, intensity;
+    auto shift = int(centroid_bins - 1 - last_idx);
+    rotateWindows(-shift);
     std::tie(m, intensity) = centroid(mz_window.begin(), mz_window.end(),
                                       int_window.begin());
+    rotateWindows(shift);
     result.masses.push_back(m);
     result.abundances.push_back(intensity);
   }
