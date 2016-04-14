@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ms/isotope_pattern.hpp"
 #include "ms/periodic_table.hpp"
 
 #include <string>
