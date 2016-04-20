@@ -83,26 +83,31 @@ namespace ms {
 
 namespace sf_parser {
   class ParseError : public std::exception {
-    std::string s_;
-    size_t pos_;
+    std::string msg_;
   public:
-    ParseError(const std::string& str, size_t pos) : s_(str), pos_(pos) {}
-    virtual const char* what() const noexcept {
+    ParseError(const std::string& str, size_t pos)
+    {
       std::ostringstream ss;
-      ss << s_ << " at position " << pos_;
-      return ss.str().c_str();
+      ss << str << " at position " << pos;
+      msg_ = ss.str();
+    }
+
+    virtual const char* what() const noexcept {
+      return msg_.c_str();
     }
   };
 
   class NegativeTotalError : public std::exception {
-    std::string element_;
-    int total_;
+    std::string msg_;
   public:
-    NegativeTotalError(const std::string& element, int total) : element_(element), total_(total) {}
-    virtual const char* what() const noexcept {
+    NegativeTotalError(const std::string& element, int total) {
       std::ostringstream ss;
-      ss << "total number of " << element_ << " elements (" << total_ << ") is less than zero";
-      return ss.str().c_str();
+      ss << "total number of " << element << " elements (" << total << ") is less than zero";
+      msg_ = ss.str();
+    }
+
+    virtual const char* what() const noexcept {
+      return msg_.c_str();
     }
   };
 
