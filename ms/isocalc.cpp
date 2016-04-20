@@ -294,7 +294,7 @@ namespace ms {
     }
 
     Result::Result(double mass, const ElementCounts& counts,
-                   const ExactMassSearch* const settings) :
+                   const std::shared_ptr<const ExactMassSearchSettings>& settings) :
       mass{mass}, counts{counts}, settings{settings}
     {
     }
@@ -306,7 +306,7 @@ namespace ms {
     template<size_t N>
     struct FormulaGenerator {
       static inline void run(std::vector<Result>& results,
-                             const ExactMassSearch* const settings,
+                             const std::shared_ptr<const ExactMassSearchSettings>& settings,
                              ElementCounts& current_counts,
                              double current_mass = 0.0)
       {
@@ -332,7 +332,7 @@ namespace ms {
     template<>
     struct FormulaGenerator<0> {
       static inline void run(std::vector<Result>& results,
-                             const ExactMassSearch* const settings,
+                             const std::shared_ptr<const ExactMassSearchSettings>& settings,
                              ElementCounts& current_counts,
                              double current_mass)
       {
@@ -347,33 +347,55 @@ namespace ms {
       }
     };
 
-    ExactMassSearch::ExactMassSearch(double mass, double ppm,
-                                     const std::vector<ElementSettings> elements,
-                                     size_t max_results) :
-      mass{mass}, ppm{ppm}, elements{elements}, max_results{max_results}
+    ExactMassSearch::ExactMassSearch(const ExactMassSearchSettings& settings) :
+      settings(std::make_shared<ExactMassSearchSettings>(settings))
     {
     }
 
     std::vector<Result> ExactMassSearch::run() const {
       std::vector<Result> results;
-      ElementCounts counts(this->elements.size());
+      ElementCounts counts(this->settings->elements.size());
+      auto p = settings;
 
-      switch (this->elements.size()) {
+      switch (this->settings->elements.size()) {
       case 0:  break;
-      case 1:  FormulaGenerator< 1>::run(results, this, counts); break;
-      case 2:  FormulaGenerator< 2>::run(results, this, counts); break;
-      case 3:  FormulaGenerator< 3>::run(results, this, counts); break;
-      case 4:  FormulaGenerator< 4>::run(results, this, counts); break;
-      case 5:  FormulaGenerator< 5>::run(results, this, counts); break;
-      case 6:  FormulaGenerator< 6>::run(results, this, counts); break;
-      case 7:  FormulaGenerator< 7>::run(results, this, counts); break;
-      case 8:  FormulaGenerator< 8>::run(results, this, counts); break;
-      case 9:  FormulaGenerator< 9>::run(results, this, counts); break;
-      case 10: FormulaGenerator<10>::run(results, this, counts); break;
+      case 1:  FormulaGenerator< 1>::run(results, p, counts); break;
+      case 2:  FormulaGenerator< 2>::run(results, p, counts); break;
+      case 3:  FormulaGenerator< 3>::run(results, p, counts); break;
+      case 4:  FormulaGenerator< 4>::run(results, p, counts); break;
+      case 5:  FormulaGenerator< 5>::run(results, p, counts); break;
+      case 6:  FormulaGenerator< 6>::run(results, p, counts); break;
+      case 7:  FormulaGenerator< 7>::run(results, p, counts); break;
+      case 8:  FormulaGenerator< 8>::run(results, p, counts); break;
+      case 9:  FormulaGenerator< 9>::run(results, p, counts); break;
+      case 10: FormulaGenerator<10>::run(results, p, counts); break;
       default:
         throw std::runtime_error("at most 10 distinct elements are supported");
       }
 
+      return results;
+    }
+
+    ExactMassSearchWithAdduct::ExactMassSearchWithAdduct(const ExactMassSearchSettings& settings,
+          const std::vector<std::string>& possible_adducts, int charge) :
+      settings{settings}, possible_adducts{possible_adducts}, charge{charge}
+    {
+    }
+
+    std::map<std::string, std::vector<Result>> ExactMassSearchWithAdduct::run() const {
+      std::map<std::string, std::vector<Result>> results;
+#pragma omp parallel for
+      for (size_t i = 0; i < possible_adducts.size(); i++) {
+        auto adduct = possible_adducts[i];
+        ExactMassSearchSettings s = settings;
+        s.mass -= -charge * ms::electronMass + ms::monoisotopicMass(adduct);
+        ExactMassSearch search(s);
+        auto r = search.run();
+#pragma omp critical
+        {
+          results[adduct] = r;
+        }
+      }
       return results;
     }
   }

@@ -8,6 +8,7 @@
 #include <map>
 #include <cstdint>
 #include <vector>
+#include <memory>
 
 namespace ms {
   typedef std::map<std::string, uint16_t> ElementCounter;
@@ -41,14 +42,29 @@ namespace ms {
 
     typedef std::vector<size_t> ElementCounts;
 
-    struct ExactMassSearch;
+    struct ExactMassSearchSettings {
+      double mass;
+      double ppm;
+      std::vector<ElementSettings> elements;
+      size_t max_results;
+
+      ExactMassSearchSettings(double mass, double ppm,
+                              const std::vector<ElementSettings> elements,
+                              size_t max_results=1000000) :
+        mass{mass}, ppm{ppm}, elements{elements}, max_results{max_results}
+      {
+      }
+    };
 
     struct Result {
       double mass;
       ElementCounts counts;
-      const ExactMassSearch* const settings;
+      std::shared_ptr<const ExactMassSearchSettings> settings;
 
-      Result(double, const ElementCounts&, const ExactMassSearch* const);
+      Result(double, const ElementCounts&,
+             const std::shared_ptr<const ExactMassSearchSettings>&);
+
+      Result() : mass{0.0}, counts{}, settings{nullptr} {};
 
       std::string sumFormula() const;
     };
@@ -59,24 +75,34 @@ namespace ms {
        Example of usage:
 
        using ms::mass_search;
-       ExactMassSearch search{512.436, 1.0,
+       ExactMassSearch search{{512.436, 1.0,
            {{"C", 0, 100}, {"H", 0, 100}, {"O", 0, 100}, {"N", 0, 20}}
-       };
+       }};
 
        for (auto& r: search.run())
            std::cout << r.sumFormula() << std::endl;
      **/
-    struct ExactMassSearch {
-      ExactMassSearch(double mass, double ppm,
-                      const std::vector<ElementSettings> elements,
-                      size_t max_results=1000000);
+    struct ExactMassSearch
+    {
+      ExactMassSearch(const ExactMassSearchSettings& settings);
+
+      const std::shared_ptr<ExactMassSearchSettings> settings;
 
       std::vector<Result> run() const;
+    };
 
-      double mass;
-      double ppm;
-      std::vector<ElementSettings> elements;
-      size_t max_results;
+    struct ExactMassSearchWithAdduct
+    {
+      ExactMassSearchWithAdduct(const ExactMassSearchSettings& settings,
+                                const std::vector<std::string>& possible_adducts,
+                                int charge);
+
+      std::map<std::string, std::vector<Result>> run() const;
+
+      ExactMassSearchSettings settings;
+
+      std::vector<std::string> possible_adducts;
+      int charge;
     };
   }
 }
