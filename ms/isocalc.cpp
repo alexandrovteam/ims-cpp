@@ -277,3 +277,104 @@ namespace sf_parser {
     return parser.elementCounts();
   }
 }
+
+namespace ms {
+  namespace mass_search {
+
+    std::string Result::sumFormula() const {
+      std::stringstream ss;
+      for (size_t i = 0; i < settings->elements.size(); i++) {
+        if (counts[i] > 0) {
+          ss << settings->elements[i].name;
+          if (counts[i] > 1)
+            ss << counts[i];
+        }
+      }
+      return ss.str();
+    }
+
+    Result::Result(double mass, const ElementCounts& counts,
+                   const ExactMassSearch* const settings) :
+      mass{mass}, counts{counts}, settings{settings}
+    {
+    }
+
+    /*
+      value of N > 0 means that N'th element count is explored;
+      value of N = 0 means checking and storing current result
+    */
+    template<size_t N>
+    struct FormulaGenerator {
+      static inline void run(std::vector<Result>& results,
+                             const ExactMassSearch* const settings,
+                             ElementCounts& current_counts,
+                             double current_mass = 0.0)
+      {
+        const ElementSettings& element = settings->elements[N - 1];
+        double element_mass = element.monoisotopic_mass;
+        double max_mass = settings->mass * (1.0 + settings->ppm * 1e-6);
+        size_t min_count = element.min_count;
+        size_t max_count = std::min(element.max_count,
+                                    size_t((max_mass - current_mass) / element_mass));
+
+        auto old_value = current_counts[N - 1];
+
+        for (size_t count = min_count; count <= max_count; count++) {
+          double current_mass_i = current_mass + element_mass * count;
+          current_counts[N - 1] = count;
+          FormulaGenerator<N - 1>::run(results, settings, current_counts, current_mass_i);
+        }
+
+        current_counts[N - 1] = old_value;
+      }
+    };
+
+    template<>
+    struct FormulaGenerator<0> {
+      static inline void run(std::vector<Result>& results,
+                             const ExactMassSearch* const settings,
+                             ElementCounts& current_counts,
+                             double current_mass)
+      {
+        if (results.size() >= settings->max_results)
+          return;
+
+        auto ppm = (current_mass - settings->mass) / settings->mass * 1e6;
+        if (std::fabs(ppm) > settings->ppm)
+          return;
+
+        results.emplace_back(current_mass, current_counts, settings);
+      }
+    };
+
+    ExactMassSearch::ExactMassSearch(double mass, double ppm,
+                                     const std::vector<ElementSettings> elements,
+                                     size_t max_results) :
+      mass{mass}, ppm{ppm}, elements{elements}, max_results{max_results}
+    {
+    }
+
+    std::vector<Result> ExactMassSearch::run() const {
+      std::vector<Result> results;
+      ElementCounts counts(this->elements.size());
+
+      switch (this->elements.size()) {
+      case 0:  break;
+      case 1:  FormulaGenerator< 1>::run(results, this, counts); break;
+      case 2:  FormulaGenerator< 2>::run(results, this, counts); break;
+      case 3:  FormulaGenerator< 3>::run(results, this, counts); break;
+      case 4:  FormulaGenerator< 4>::run(results, this, counts); break;
+      case 5:  FormulaGenerator< 5>::run(results, this, counts); break;
+      case 6:  FormulaGenerator< 6>::run(results, this, counts); break;
+      case 7:  FormulaGenerator< 7>::run(results, this, counts); break;
+      case 8:  FormulaGenerator< 8>::run(results, this, counts); break;
+      case 9:  FormulaGenerator< 9>::run(results, this, counts); break;
+      case 10: FormulaGenerator<10>::run(results, this, counts); break;
+      default:
+        throw std::runtime_error("at most 10 distinct elements are supported");
+      }
+
+      return results;
+    }
+  }
+}

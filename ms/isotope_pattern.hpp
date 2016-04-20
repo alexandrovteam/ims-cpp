@@ -9,6 +9,7 @@
 #include <tuple>
 #include <cassert>
 #include <cmath>
+#include <functional>
 
 namespace ms {
 
