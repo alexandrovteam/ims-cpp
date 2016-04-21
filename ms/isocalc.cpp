@@ -1,6 +1,11 @@
 #include "ms/isocalc.hpp"
 
-#include "fftw3.h"
+#include "third-party/kissfft/kiss_fft.h"
+#include "third-party/kissfft/tools/kiss_fftndr.h"
+
+static_assert(sizeof(kiss_fft_scalar) == 8,
+              "use -Dkiss_fft_scalar for double precision");
+
 #include <cassert>
 #include <cstring>
 #include <complex>
@@ -9,34 +14,95 @@
 #include <new>
 #include <stdexcept>
 #include <sstream>
+#include <memory>
 
 namespace ms {
   namespace detail {
-    __attribute ((__destructor__)) void fftwCleanup() { fftw_cleanup(); }
 
-    class FftwArray {
+    class KissFftState {
       std::vector<int> dims_;
-      std::complex<double>* data_;
-      size_t n_;
-      public:
-      FftwArray(const std::vector<int>& dimensions) : dims_(dimensions) {
-        n_ = 1;
-        for (int x: dimensions)
-          n_ *= x;
-        if (n_ > 1e7)
-          throw std::runtime_error("too many isotopic combinations");
-        data_ = reinterpret_cast<std::complex<double>*>(fftw_alloc_complex(n_));
-        if (data_ == nullptr)
+      bool inverse_;
+      void* cfg_;
+      bool is1d() const { return dims_.size() == 1; }
+    public:
+      KissFftState(const std::vector<int>& dimensions, bool inverse=false) :
+        dims_(dimensions), inverse_(inverse)
+      {
+        if (is1d())
+          cfg_ = kiss_fftr_alloc(dims_[0], inverse, nullptr, nullptr);
+        else
+          cfg_ = kiss_fftndr_alloc(&dims_[0], dims_.size(), inverse, nullptr, nullptr);
+        if (cfg_ == nullptr)
           throw std::bad_alloc();
-        std::memset(data_, 0, n_ * sizeof(fftw_complex));
       }
 
-      fftw_complex* fftw_data() const { return reinterpret_cast<fftw_complex*>(data_); }
-      std::complex<double>* data() const { return data_; }
+      KissFftState(const KissFftState&) = delete;
+      KissFftState operator=(const KissFftState&) = delete;
+      ~KissFftState() {
+        free(cfg_);
+      }
+
+      void runFFT(void* in, void* out) {
+        if (is1d()) { // for some reason kiss_fftndr needs at least 2 dimensions to work
+          if (!inverse_)
+            kiss_fftr((kiss_fftr_cfg)cfg_, (kiss_fft_scalar*)in, (kiss_fft_cpx*)out);
+          else
+            kiss_fftri((kiss_fftr_cfg)cfg_, (kiss_fft_cpx*)in, (kiss_fft_scalar*)out);
+        } else {
+          if (!inverse_)
+            kiss_fftndr((kiss_fftndr_cfg)cfg_, (kiss_fft_scalar*)in, (kiss_fft_cpx*)out);
+          else
+            kiss_fftndri((kiss_fftndr_cfg)cfg_, (kiss_fft_cpx*)in, (kiss_fft_scalar*)out);
+        }
+      }
+    };
+
+    static_assert(sizeof(kiss_fft_cpx) == sizeof(std::complex<kiss_fft_scalar>), "");
+
+    class FftArray {
+      std::vector<int> dims_;
+      std::complex<kiss_fft_scalar>* data_;
+      size_t n_;
+    public:
+      FftArray(const std::vector<int>& dimensions) :
+        dims_(dimensions), data_(nullptr), n_(1)
+      {
+        for (int x: dims_) n_ *= x;
+
+        if (n_ > 1e7)
+          throw std::runtime_error("too many isotopic combinations");
+
+        size_t n_bytes = n_ * sizeof(kiss_fft_cpx);
+
+        data_ = reinterpret_cast<std::complex<kiss_fft_scalar>*>(KISS_FFT_MALLOC(n_bytes));
+        if (data_ == nullptr)
+          throw std::bad_alloc();
+        std::memset(data_, 0, n_bytes);
+      }
+
+      void forwardFFT() {
+        KissFftState state(dims_, false);
+        state.runFFT(scalar_data(), complex_data());
+      }
+
+      void inverseFFT() {
+        KissFftState state(dims_, true);
+        state.runFFT(complex_data(), scalar_data());
+      }
+
+      kiss_fft_cpx* complex_data() const {
+        return reinterpret_cast<kiss_fft_cpx*>(data_);
+      }
+
+      kiss_fft_scalar* scalar_data() const {
+        return reinterpret_cast<kiss_fft_scalar*>(data_);
+      }
+
+      std::complex<kiss_fft_scalar>* data() const { return data_; }
       size_t size() const { return n_; }
 
-      ~FftwArray() {
-        fftw_free(data_);
+      ~FftArray() {
+        kiss_fftr_free(data_);
       }
     };
   }
@@ -54,36 +120,31 @@ namespace ms {
 
   IsotopePattern computeIsotopePattern(const ms::Element& element, size_t amount, double threshold) {
     size_t dim = element.isotope_pattern.size() - 1;
-    std::vector<int> dimensions(static_cast<int>(dim), amount + 1);
-    detail::FftwArray arr{dimensions};
+    if (dim == 0)
+      return ms::IsotopePattern(element.isotope_pattern.masses[0] * amount);
 
-    static std::mutex plan_mutex; // planning is not thread-safe
+    size_t edge_len = kiss_fftr_next_fast_size_real(amount + 1);
+
+    std::vector<int> dimensions(int(dim), edge_len);
+    detail::FftArray arr{dimensions};
 
     // array setup
     const auto& iso = element.isotope_pattern;
-    arr.data()[0] = iso.abundances[0];
-    for (size_t i = 0, k = 1; i < dim; i++, k *= amount + 1)
-      arr.data()[k] = iso.abundances[dim - i];
+    arr.scalar_data()[0] = iso.abundances[0];
+    for (size_t i = 0, k = 1; i < dim; i++, k *= edge_len)
+      arr.scalar_data()[k] = iso.abundances[dim - i];
 
-    plan_mutex.lock();
     // forward FFT
-    auto fwd_plan = fftw_plan_dft(int(dim), &dimensions[0], arr.fftw_data(), arr.fftw_data(),
-                                 FFTW_FORWARD, FFTW_ESTIMATE);
-    fftw_execute(fwd_plan);
+    arr.forwardFFT();
 
     // exponentiation
     for (size_t i = 0; i < arr.size(); ++i)
       arr.data()[i] = std::pow(arr.data()[i], amount);
-    fftw_destroy_plan(fwd_plan);
 
     // inverse FFT
-    auto bwd_plan = fftw_plan_dft(dim, &dimensions[0], arr.fftw_data(), arr.fftw_data(),
-                                  FFTW_BACKWARD, FFTW_ESTIMATE);
-    fftw_execute(bwd_plan);
+    arr.inverseFFT();
     for (size_t i = 0; i < arr.size(); ++i)
-      arr.data()[i] /= double(arr.size()); // take care of FFTW normalization
-    fftw_destroy_plan(bwd_plan);
-    plan_mutex.unlock();
+      arr.scalar_data()[i] /= double(arr.size()); // take care of FFT normalization
 
     ms::IsotopePattern isotope_pattern;
 
@@ -92,22 +153,23 @@ namespace ms {
       size_t k;
       size_t n = 0;
       double mass = 0.0;
-      for (k = 0; k < dim; ++k) {
+      for (k = 0; k < indices.size(); ++k) {
         mass += iso.masses[k + 1] * indices[k];
         n += indices[k];
       }
 
-      if (n <= amount && arr.data()[i].real() >= threshold) {
+      if (n <= amount && arr.scalar_data()[i] >= threshold) {
         mass += (amount - n) * iso.masses[0];
 
         isotope_pattern.masses.push_back(mass);
-        isotope_pattern.abundances.push_back(arr.data()[i].real());
+        isotope_pattern.abundances.push_back(arr.scalar_data()[i]);
       }
 
       if (i == arr.size() - 1) break;
-      for (k = dim - 1; indices[k] == amount; --k);
+
+      for (k = indices.size() - 1; indices[k] == edge_len - 1; --k);
       indices[k] += 1;
-      while (++k < dim) indices[k] = 0;
+      while (++k < indices.size()) indices[k] = 0;
     }
 
     isotope_pattern.normalize();

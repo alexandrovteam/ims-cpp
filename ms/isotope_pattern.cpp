@@ -209,6 +209,7 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
     throw std::logic_error("the result contains no peaks, make min_abundance lower!");
 
   result.normalize();
+  result.removeAbundancesBelow(min_abundance);
   return result;
 }
 

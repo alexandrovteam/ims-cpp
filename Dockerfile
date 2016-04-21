@@ -14,13 +14,6 @@ RUN /usr/bin/scl enable devtoolset-3 true
 ENV CC=/opt/rh/devtoolset-3/root/usr/bin/gcc
 ENV CXX=/opt/rh/devtoolset-3/root/usr/bin/g++
 
-# install FFTW manually (version on yum is too old)
-RUN curl -O http://www.fftw.org/fftw-3.3.4.tar.gz &&\
-    tar xzf fftw-3.3.4.tar.gz &&\
-    cd fftw-3.3.4 &&\
-    ./configure CFLAGS='-mtune=generic -fPIC -O3 -malign-double -fstrict-aliasing -ffast-math' &&\
-    make -s && make install
-
 # let's link to liblzma statically
 RUN curl -O http://tukaani.org/xz/xz-5.2.2.tar.gz &&\
     tar xzf xz-5.2.2.tar.gz &&\

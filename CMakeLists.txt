@@ -64,7 +64,7 @@ ExternalProject_Get_Property(cxxopts source_dir)
 include_directories(${source_dir}/src)
 
 set(PROGRESSBAR_DIR ${PROJECT_SOURCE_DIR}/third-party/progressbar)
-externalproject_add(progressbar
+externalproject_add(progressbar_proj
   GIT_REPOSITORY https://github.com/doches/progressbar
   GIT_TAG 760e20c245a72cf564687c1ecc18163799229c58
   CONFIGURE_COMMAND ""
@@ -74,17 +74,33 @@ externalproject_add(progressbar
   BINARY_DIR ${PROGRESSBAR_DIR}
   BUILD_COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_FLAGS} -c -Iinclude lib/progressbar.c  -o lib/libprogressbar.a
   )
-ExternalProject_Get_Property(progressbar source_dir)
-include_directories(${source_dir}/include)
-set(PROGRESSBAR_LIB ${PROGRESSBAR_DIR}/lib/libprogressbar.a)
+include_directories(${PROGRESSBAR_DIR}/include)
+add_library(progressbar STATIC IMPORTED)
+set_property(TARGET progressbar PROPERTY IMPORTED_LOCATION  ${PROGRESSBAR_DIR}/lib/libprogressbar.a)
+add_dependencies(progressbar progressbar_proj)
+
+add_definitions(-Dkiss_fft_scalar=double)
+set(KISSFFT_DIR ${PROJECT_SOURCE_DIR}/third-party/kissfft)
+include_directories(${KISSFFT_DIR})
+externalproject_add(kissfft_proj
+  GIT_REPOSITORY https://github.com/itdaniher/kissfft
+  GIT_TAG 071e47d8ca9000531eff73813834822610ef77c9
+  CONFIGURE_COMMAND ""
+  INSTALL_COMMAND ""
+  DOWNLOAD_DIR ${KISSFFT_DIR}
+  SOURCE_DIR ${KISSFFT_DIR}
+  BINARY_DIR ${KISSFFT_DIR}
+  BUILD_COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_FLAGS} -Dkiss_fft_scalar=double -I. -c kiss_fft.c tools/kiss_fftr.c tools/kiss_fftnd.c tools/kiss_fftndr.c && ar crus libkissfft.a kiss_fft.o kiss_fftr.o kiss_fftnd.o kiss_fftndr.o
+  )
+add_library(kissfft STATIC IMPORTED)
+set_property(TARGET kissfft PROPERTY IMPORTED_LOCATION ${KISSFFT_DIR}/libkissfft.a)
+add_dependencies(kissfft kissfft_proj)
 
 find_package(OpenMP REQUIRED)
 find_package(LibXml2 REQUIRED)
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 include_directories(${LIBXML2_INCLUDE_DIR})
-
-find_library(FFTW_LIBRARY NAMES fftw3 fftw fftw-3.3)
 
 if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
   message(FATAL_ERROR "In-source builds are strongly discouraged. "
@@ -111,14 +127,15 @@ set(SRC_COMMON
   ms/isotope_pattern.cpp
   ms/periodic_table.cpp
   )
-
 add_library(libims STATIC ${SRC_COMMON})
 target_compile_options(libims PUBLIC -std=c++11)
-add_dependencies(libims blosc)
+add_dependencies(libims blosc kissfft)
 set_target_properties(libims PROPERTIES OUTPUT_NAME ims)
 
 if ( NOT APPLE )
-target_link_libraries(libims ${BLOSC_LIBRARY} -fopenmp -pthread)
+target_link_libraries(libims kissfft ${BLOSC_LIBRARY} -fopenmp -pthread)
+else()
+target_link_libraries(libims kissfft)
 endif()
 
 add_executable(ims-bin
@@ -132,12 +149,13 @@ add_executable(ims-bin
   utils/metrics.cpp)
 target_compile_options(ims-bin PUBLIC -std=c++11 ${OpenMP_CXX_FLAGS} -pthread)
 set_target_properties(ims-bin PROPERTIES OUTPUT_NAME ims)
+target_link_libraries(ims-bin progressbar libims)
 if ( WIN32 )
-  target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -lncurses -lxml2 -liconv libims -lfftw3 -lgomp -lwinpthread -lws2_32)
+  target_link_libraries(ims-bin -Wl,-Bstatic -lncurses -lxml2 -liconv -lgomp -lwinpthread -lws2_32)
 elseif ( APPLE )
-  target_link_libraries(ims-bin ${BLOSC_LIBRARY} ${PROGRESSBAR_LIB} -lncurses -lxml2 libims /usr/local/opt/fftw/lib/libfftw3.a ${OpenMP_CXX_FLAGS})
+  target_link_libraries(ims-bin ${BLOSC_LIBRARY} -lncurses -lxml2 ${OpenMP_CXX_FLAGS})
 else()
-  target_link_libraries(ims-bin ${PROGRESSBAR_LIB} -Wl,-Bstatic -ltermcap -lxml2 libims -lfftw3 -llzma -lstdc++ -Wl,-Bdynamic -lm)
+  target_link_libraries(ims-bin -Wl,-Bstatic -ltermcap -lxml2 -llzma -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 add_dependencies(ims-bin blosc libims msgpack progressbar)
 
@@ -150,13 +168,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/isotope_pattern.cpp ms/periodic_table.cpp)
 target_compile_options(ms_cffi PUBLIC -std=c++11)
+add_dependencies(ms_cffi kissfft)
+target_link_libraries(ms_cffi kissfft)
 
 if ( WIN32 )
-  target_link_libraries(ms_cffi -Wl,-Bstatic -lfftw3 -lwinpthread -lws2_32)
+  target_link_libraries(ms_cffi -Wl,-Bstatic -lwinpthread -lws2_32)
 elseif ( APPLE )
-  target_link_libraries(ms_cffi /usr/local/opt/fftw/lib/libfftw3.a)
 else()
-  target_link_libraries(ms_cffi -Wl,-Bsymbolic-functions -Wl,-Bstatic -lfftw3 -lstdc++ -Wl,-Bdynamic -lm)
+  target_link_libraries(ms_cffi -Wl,-Bsymbolic-functions -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 
 add_library(ims_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp cffi/image_measures.cpp ims/image_measures.cpp)

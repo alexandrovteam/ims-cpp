@@ -23,7 +23,9 @@ namespace ms {
     }
 
     static Element getByName(const std::string& abbr) {
-      return periodic_table.find(abbr)->second;
+      auto el = periodic_table.find(abbr)->second;
+      el.isotope_pattern.normalize();
+      return el;
     }
   };
 }
