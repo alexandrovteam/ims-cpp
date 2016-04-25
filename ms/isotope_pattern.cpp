@@ -92,8 +92,7 @@ IsotopePattern sortByMass(const ms::IsotopePattern& p) {
 double IsotopePattern::envelope(double resolution, double mz, size_t width) const {
   double result = 0.0;
 
-  double fwhm = masses[0] / resolution;
-  double sigma = fwhm / fwhm_to_sigma;
+  double sigma = ms::sigmaAtResolution(*this, resolution);
 
   for (size_t k = 0; k < size(); ++k) {
     if (std::fabs(masses[k] - mz) > width * sigma)
@@ -138,6 +137,13 @@ double EnvelopeGenerator::operator()(double mz) {
   return envelope(mz);
 }
 
+double sigmaAtResolution(const IsotopePattern& p, double resolution) {
+  if (p.size() == 0 || resolution <= 0)
+    return NAN;
+  auto fwhm = p.masses[0] / resolution;
+  return fwhm / fwhm_to_sigma;
+}
+
 constexpr size_t centroid_bins = 15;
 
 IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance, size_t points_per_fwhm) const {
@@ -145,20 +151,19 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
     return *this;
   if (points_per_fwhm < 5)
     throw std::logic_error("points_per_fwhm must be at least 5 for meaningful results");
-  double fwhm = this->masses[0] / resolution;
-  double sigma = fwhm / fwhm_to_sigma;
-  const size_t width = 12;
 
-  double step = fwhm / points_per_fwhm;
-  double pad = step * centroid_bins / 2 + width * sigma;
-  double min_mz = *std::min_element(this->masses.begin(), this->masses.end()) - pad;
-  double max_mz = *std::max_element(this->masses.begin(), this->masses.end()) + pad;
+  const size_t width = 12;
+  double sigma = ms::sigmaAtResolution(*this, resolution);
+
+  double step = (sigma * fwhm_to_sigma) / points_per_fwhm;
+  double min_mz = *std::min_element(this->masses.begin(), this->masses.end());
+  double max_mz = *std::max_element(this->masses.begin(), this->masses.end());
 
   EnvelopeGenerator envelope(*this, resolution, width);
 
   std::array<double, centroid_bins> mz_window, int_window;
   size_t center = centroid_bins / 2, last_idx = centroid_bins - 1;
-  mz_window[center] = min_mz + pad - width * sigma;
+  mz_window[center] = min_mz - width * sigma;
   for (size_t j = 0; j < centroid_bins; j++) {
     mz_window[j] = mz_window[center] + (int(j) - int(center)) * step;
     int_window[j] = envelope(mz_window[j]);
@@ -179,7 +184,7 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
     center = next(center);
 
     auto next_mz = mz_window[last_idx] + step;
-    if (next_mz > max_mz)
+    if (next_mz > max_mz + width * sigma)
       break;
 
     last_idx = next(last_idx);

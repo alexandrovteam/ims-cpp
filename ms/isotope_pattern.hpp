@@ -128,6 +128,8 @@ namespace ms {
 
   constexpr static double fwhm_to_sigma = 2.3548200450309493; // 2 \sqrt{2 \log 2}
 
+  double sigmaAtResolution(const IsotopePattern& p, double resolution);
+
   IsotopePattern sortByMass(const IsotopePattern& p);
 
   class EnvelopeGenerator {
