@@ -49,7 +49,7 @@ namespace ms {
       size_t max_results;
 
       ExactMassSearchSettings(double mass, double ppm,
-                              const std::vector<ElementSettings> elements,
+                              const std::vector<ElementSettings>& elements,
                               size_t max_results=1000000) :
         mass{mass}, ppm{ppm}, elements{elements}, max_results{max_results}
       {

@@ -5,6 +5,7 @@
 #include <limits>
 #include <cstring>
 #include <valarray>
+#include <numeric>
 
 namespace ims {
   double isotopeImageCorrelation(const ims::ImageF* images, size_t n,
