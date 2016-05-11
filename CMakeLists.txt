@@ -157,7 +157,7 @@ elseif ( APPLE )
 else()
   target_link_libraries(ims-bin -Wl,-Bstatic -ltermcap -lxml2 -llzma -lstdc++ -Wl,-Bdynamic -lm)
 endif()
-add_dependencies(ims-bin blosc libims msgpack progressbar)
+add_dependencies(ims-bin blosc libims msgpack progressbar cxxopts)
 
 if ( SCILS_H5_SUPPORT)
 target_compile_definitions(ims-bin PRIVATE -DSCILS_H5)
