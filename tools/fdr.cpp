@@ -168,10 +168,11 @@ int fdr_main(int argc, char** argv) {
     for (size_t j = 0; j < target_metrics.size(); j++)
       out << target_metrics[j] << "," << fdr[j] << std::endl;
   } else {
-    std::set<std::pair<std::string, std::string>> groundtruth;
+    std::set<std::pair<ms::ElementCounter, std::string>> groundtruth;
 
     auto is_correct = [&](const Metrics& metrics) -> bool {
-      auto key = std::make_pair(metrics.sf, metrics.adduct);
+      auto key = std::make_pair(sf_parser::parseSumFormula(metrics.sf),
+                                metrics.adduct);
       return groundtruth.find(key) != groundtruth.end();
     };
 
@@ -182,7 +183,8 @@ int fdr_main(int argc, char** argv) {
       std::string sf, adduct;
       std::getline(is, sf, ',');
       std::getline(is, adduct, ',');
-      groundtruth.insert(std::make_pair(sf, adduct));
+      groundtruth.insert(std::make_pair(sf_parser::parseSumFormula(sf),
+                                        adduct));
     }
 
     out << Metrics::header() << ",est_fdr,true_fdr,correct" << std::endl;
