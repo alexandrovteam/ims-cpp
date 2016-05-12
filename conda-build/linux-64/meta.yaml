@@ -1,0 +1,20 @@
+package:
+  name: ims-cpp
+  version: "0.1"
+
+source:
+  git_url: https://github.com/alexandrovteam/ims-cpp
+  git_tag: master
+
+build:
+  number: 1
+
+requirements:
+  build:
+    - gcc-5
+    - cmake
+
+about:
+  home: https://github.com/alexandrovteam/ims-cpp
+  license: Apache-2.0
+  summary: tools for spatial metabolomics
