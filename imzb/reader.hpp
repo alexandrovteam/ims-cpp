@@ -52,6 +52,9 @@ public:
   uint32_t height() const { return index_->header.mask.height; }
   uint32_t width() const { return index_->header.mask.width; }
 
+  double minMz() const { return index_->header.min_mz; }
+  double maxMz() const { return index_->header.max_mz; }
+
   void close() { in_.close(); }
   const std::string& filename() const { return fn_; }
 };

@@ -35,4 +35,12 @@ extern "C" {
         return 0;
       });
   }
+
+  IMS_EXTERN double imzb_reader_min_mz(imzb::ImzbReader* reader) {
+    return reader->minMz();
+  }
+
+  IMS_EXTERN double imzb_reader_max_mz(imzb::ImzbReader* reader) {
+    return reader->maxMz();
+  }
 }

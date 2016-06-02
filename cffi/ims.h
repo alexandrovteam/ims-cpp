@@ -5,6 +5,8 @@ ImzbReader imzb_reader_new(char*);
 void imzb_reader_free(ImzbReader);
 int imzb_reader_height(ImzbReader);
 int imzb_reader_width(ImzbReader);
+double imzb_reader_min_mz(ImzbReader);
+double imzb_reader_max_mz(ImzbReader);
 int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 

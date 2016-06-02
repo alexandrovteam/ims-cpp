@@ -33,6 +33,8 @@ private:
 
   ImzbCompressionSettings c_;
 
+  double min_mz_, max_mz_;
+
 public:
   ImzbWriter(const std::string& filename,
              const ImzbCompressionSettings& compression_settings=ImzbCompressionSettings());
