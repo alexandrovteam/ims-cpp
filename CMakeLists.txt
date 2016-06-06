@@ -21,7 +21,7 @@ elseif( WIN32 )
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mincoming-stack-boundary=2")
 else()
   set(CMAKE_C_FLAGS "-fPIC")
-  set(CMAKE_CXX_FLAGS "-fPIC")
+  set(CMAKE_CXX_FLAGS "-fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wl,--exclude-libs=ALL")
 endif()
 
 # MessagePack - simple serialization library
