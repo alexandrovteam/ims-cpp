@@ -9,51 +9,37 @@
 #include <vector>
 #include <fstream>
 
-namespace imzml{
+namespace imzml {
 
 class Metadata {
   static const std::map<std::string, std::string> supported_accessions_;
 
   std::map<std::string, std::string> dict_;
-public:
+
+ public:
   Metadata() {}
 
   void processNode(xmlTextReaderPtr reader);
 
-  const std::map<std::string, std::string>& dict() const {
-    return dict_;
-  }
+  const std::map<std::string, std::string>& dict() const { return dict_; }
 };
 
 struct LibXmlString {
   xmlChar* str;
 
-  LibXmlString(xmlChar* str) : str(str) {
-  }
+  LibXmlString(xmlChar* str) : str(str) {}
 
-  bool operator==(const char* other) {
-    return !xmlStrcmp(str, (xmlChar*)other);
-  }
+  bool operator==(const char* other) { return !xmlStrcmp(str, (xmlChar*)other); }
 
-  bool operator==(const std::string& other) {
-    return this->operator==(other.c_str());
-  }
+  bool operator==(const std::string& other) { return this->operator==(other.c_str()); }
 
-  bool operator!=(const char* other) {
-    return !this->operator==(other);
-  }
+  bool operator!=(const char* other) { return !this->operator==(other); }
 
-  bool operator!=(const std::string& other) {
-    return !this->operator==(other);
-  }
+  bool operator!=(const std::string& other) { return !this->operator==(other); }
 
-  operator std::string() const {
-    return std::string((const char*)str);
-  }
+  operator std::string() const { return std::string((const char*)str); }
 
-  ~LibXmlString() {
-    xmlFree(str);
-  }
+  ~LibXmlString() { xmlFree(str); }
 };
 
 LibXmlString getAttribute(xmlTextReaderPtr, const char*);
@@ -121,7 +107,7 @@ class ImzmlReader final : public ims::AbstractReader {
 
   void readMetadata();
 
-public:
+ public:
   ImzmlReader(const std::string& filename);
 
   bool readNextSpectrum(ims::Spectrum& spectrum);
@@ -133,5 +119,4 @@ public:
 
   ~ImzmlReader();
 };
-
 }

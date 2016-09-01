@@ -1,5 +1,5 @@
 #include "cffi/common.hpp"
-#include "ms/isotope_pattern.hpp"
+#include "ms/spectrum.hpp"
 #include "ms/isocalc.hpp"
 
 #include <stdexcept>
@@ -10,78 +10,90 @@ using namespace cffi;
 
 extern "C" {
 
-  IMS_EXTERN int isotope_pattern_size(IsotopePattern* p) { return p->size(); }
+IMS_EXTERN int spectrum_size(Spectrum* s) {
+  return s->size();
+}
 
-  IMS_EXTERN void isotope_pattern_masses(IsotopePattern* p, double* out) {
-    for (size_t i = 0; i < p->size(); i++)
-      out[i] = p->masses.at(i);
+IMS_EXTERN void spectrum_masses(Spectrum* s, double* out) {
+  for (size_t i = 0; i < s->size(); i++)
+    out[i] = s->masses.at(i);
+}
+
+IMS_EXTERN void spectrum_abundances(Spectrum* s, double* out) {
+  for (size_t i = 0; i < s->size(); i++)
+    out[i] = s->abundances.at(i);
+}
+
+IMS_EXTERN void spectrum_add_charge(Spectrum* s, int charge) {
+  s->addCharge(charge);
+}
+
+IMS_EXTERN void spectrum_multiply_inplace(Spectrum* s, double mult) {
+  s->operator*=(mult);
+}
+
+IMS_EXTERN void spectrum_add_inplace(Spectrum* s1, Spectrum* s2) {
+  (*s1) += *s2;
+}
+
+IMS_EXTERN void spectrum_trim(Spectrum* s, unsigned n_peaks) {
+  if (s->size() > n_peaks) {
+    s->masses.resize(n_peaks);
+    s->abundances.resize(n_peaks);
   }
+}
 
-  IMS_EXTERN void isotope_pattern_abundances(IsotopePattern* p, double* out) {
-    for (size_t i = 0; i < p->size(); i++)
-      out[i] = p->abundances.at(i);
-  }
+IMS_EXTERN void spectrum_free(Spectrum* s) {
+  delete s;
+}
 
-  IMS_EXTERN void isotope_pattern_add_charge(IsotopePattern* p, int charge) {
-    p->addCharge(charge);
-  }
+IMS_EXTERN Spectrum* spectrum_new(int n, double* masses, double* abundances) {
+  auto s = new (std::nothrow) Spectrum();
+  s->masses.assign(masses, masses + n);
+  s->abundances.assign(abundances, abundances + n);
+  return s;
+}
 
-  IMS_EXTERN void isotope_pattern_trim(IsotopePattern* p, unsigned n_peaks) {
-    if (p->size() > n_peaks) {
-      p->masses.resize(n_peaks);
-      p->abundances.resize(n_peaks);
-    }
-  }
+IMS_EXTERN Spectrum* spectrum_new_from_sf(
+    const char* formula, double threshold, double fft_threshold) {
+  return wrap_catch<Spectrum*>(nullptr, [&]() {
+    return heapify(computeIsotopePattern(formula, threshold, fft_threshold));
+  });
+}
 
-  IMS_EXTERN void isotope_pattern_free(IsotopePattern* p) { delete p; }
+IMS_EXTERN Spectrum* spectrum_new_from_raw(
+    int n, double* masses, float* intensities, int window_size) {
+  return wrap_catch<Spectrum*>(nullptr, [&]() {
+    return heapify(detectPeaks(masses, masses + n, intensities, window_size));
+  });
+}
 
-  IMS_EXTERN IsotopePattern* isotope_pattern_new(int n, double* masses, double* abundances) {
-    auto p = new(std::nothrow) IsotopePattern();
-    p->masses.assign(masses, masses + n);
-    p->abundances.assign(abundances, abundances + n);
-    return p;
-  }
+IMS_EXTERN Spectrum* spectrum_copy(Spectrum* s) {
+  return new (std::nothrow) Spectrum(*s);
+}
 
-  IMS_EXTERN IsotopePattern* isotope_pattern_new_from_sf(const char* formula,
-     double threshold, double fft_threshold)
-  {
-    return wrap_catch<IsotopePattern*>(nullptr, [&]() {
-        return heapify(computeIsotopePattern(formula, threshold, fft_threshold));
-    });
-  }
+IMS_EXTERN float spectrum_envelope(Spectrum* s, double resolution, double mz) {
+  return s->envelope(resolution, mz);
+}
 
-  IMS_EXTERN IsotopePattern* isotope_pattern_new_from_raw(int n, double* masses, float* intensities, int window_size)
-  {
-    return wrap_catch<IsotopePattern*>(nullptr, [&]() {
-        return heapify(detectPeaks(masses, masses + n, intensities, window_size));
-    });
-  }
+IMS_EXTERN int spectrum_envelope_plot(
+    Spectrum* s, double resolution, double* mzs, int n, float* out) {
+  return wrap_catch<int>(-1, [&]() {
+    ms::EnvelopeGenerator envelope(*s, resolution);
+    for (int i = 0; i < n; ++i)
+      out[i] = envelope(mzs[i]);
+    return 0;
+  });
+}
 
-  IMS_EXTERN IsotopePattern* isotope_pattern_copy(IsotopePattern* p) {
-    return new(std::nothrow) IsotopePattern(*p);
-  }
+IMS_EXTERN void spectrum_normalize(Spectrum* s) {
+  s->normalize();
+}
 
-  IMS_EXTERN float isotope_pattern_envelope(IsotopePattern* p, double resolution, double mz)
-  {
-    return p->envelope(resolution, mz);
-  }
-
-  IMS_EXTERN int isotope_pattern_envelope_plot(IsotopePattern* p, double resolution,
-                                                double* mzs, int n, float* out)
-  {
-    return wrap_catch<int>(-1, [&]() {
-      ms::EnvelopeGenerator envelope(*p, resolution);
-      for (int i = 0; i < n; ++i)
-        out[i] = envelope(mzs[i]);
-      return 0;
-    });
-  }
-
-  IMS_EXTERN IsotopePattern* isotope_pattern_centroids(IsotopePattern* p, double resolution,
-                                                       double min_abundance, int points_per_fwhm)
-  {
-    return wrap_catch<IsotopePattern*>(nullptr, [&]() {
-      return heapify(p->centroids(resolution, min_abundance, points_per_fwhm));
-    });
-  }
+IMS_EXTERN Spectrum* spectrum_envelope_centroids(
+    Spectrum* s, double resolution, double min_abundance, int points_per_fwhm) {
+  return wrap_catch<Spectrum*>(nullptr, [&]() {
+    return heapify(s->envelopeCentroids(resolution, min_abundance, points_per_fwhm));
+  });
+}
 }

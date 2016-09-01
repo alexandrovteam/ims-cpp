@@ -14,14 +14,12 @@ struct Metrics {
   double img_corr;
   double iso_corr;
   double chaos;
+  double median_mz_shift;
+  double num_pixels;
 
-  double msm() const {
-    return img_corr * iso_corr * chaos;
-  }
+  double msm() const { return img_corr * iso_corr * chaos; }
 
-  static std::string header() {
-    return "formula,adduct,img,iso,moc";
-  }
+  static std::string header() { return "formula,adduct,img,iso,moc,mz_shift,n_pixels"; }
 
   static bool read(std::istream& in, Metrics& m) {
     static std::string line;
@@ -33,10 +31,11 @@ struct Metrics {
     if (!readDouble(ss, m.img_corr)) return false;
     if (!readDouble(ss, m.iso_corr)) return false;
     if (!readDouble(ss, m.chaos)) return false;
+    if (!readDouble(ss, m.median_mz_shift)) return false;
+    if (!readDouble(ss, m.num_pixels)) return false;
     return true;
   }
 };
 
 std::ostream& operator<<(std::ostream& os, const Metrics& m);
-
 }

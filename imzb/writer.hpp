@@ -18,7 +18,7 @@ struct ImzbCompressionSettings {
 };
 
 class ImzbWriter {
-private:
+ private:
   std::ofstream out_;
   imzb::Index index_;
 
@@ -35,13 +35,11 @@ private:
 
   double min_mz_, max_mz_;
 
-public:
+ public:
   ImzbWriter(const std::string& filename,
-             const ImzbCompressionSettings& compression_settings=ImzbCompressionSettings());
+      const ImzbCompressionSettings& compression_settings = ImzbCompressionSettings());
 
-  void setMask(const imzb::Mask& mask) {
-    index_.header.mask = mask;
-  }
+  void setMask(const imzb::Mask& mask) { index_.header.mask = mask; }
 
   void writePeak(const ims::Peak& peak);
 
@@ -49,5 +47,4 @@ public:
 
   ~ImzbWriter();
 };
-
 }

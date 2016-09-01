@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ms/isotope_pattern.hpp"
+#include "ms/spectrum.hpp"
 
 #include <map>
 #include <string>
@@ -13,39 +13,31 @@
 namespace utils {
 
 class InstrumentProfile {
-public:
+ public:
   virtual double resolutionAt(double mz) const = 0;
   virtual ~InstrumentProfile() {}
 };
 
 class OrbitrapProfile : public InstrumentProfile {
   double resolution_200_;
-public:
-  OrbitrapProfile(double resolution_at_200) :
-    resolution_200_(resolution_at_200)
-  {}
 
-  double resolutionAt(double mz) const {
-    return resolution_200_ * sqrt(200.0 / mz);
-  }
+ public:
+  OrbitrapProfile(double resolution_at_200) : resolution_200_(resolution_at_200) {}
 
-  OrbitrapProfile() {
-  }
+  double resolutionAt(double mz) const { return resolution_200_ * sqrt(200.0 / mz); }
+
+  OrbitrapProfile() {}
 };
 
 class FTICRProfile : public InstrumentProfile {
   double resolution_200_;
-public:
-  FTICRProfile(double resolution_at_200) :
-    resolution_200_(resolution_at_200)
-  {}
 
-  double resolutionAt(double mz) const {
-    return resolution_200_ * 200.0 / mz;
-  }
+ public:
+  FTICRProfile(double resolution_at_200) : resolution_200_(resolution_at_200) {}
 
-  FTICRProfile() {
-  }
+  double resolutionAt(double mz) const { return resolution_200_ * 200.0 / mz; }
+
+  FTICRProfile() {}
 };
 
 class IsotopePatternDB {
@@ -57,57 +49,44 @@ class IsotopePatternDB {
 
   bool use_progressbar_;
 
-  static std::vector<SFAdductPair> makePairs(
-    const std::vector<std::string>& sum_formulas,
-    const std::vector<std::string>& adducts)
-  {
+  static std::vector<SFAdductPair> makePairs(const std::vector<std::string>& sum_formulas,
+      const std::vector<std::string>& adducts) {
     std::vector<SFAdductPair> pairs;
-    for (auto& f: sum_formulas)
-      for (auto& a: adducts)
+    for (auto& f : sum_formulas)
+      for (auto& a : adducts)
         pairs.push_back(std::make_pair(f, a));
     return pairs;
   }
 
-public:
-
+ public:
   void save(const std::string& output_filename);
   void load(const std::string& input_filename);
 
   IsotopePatternDB(const std::vector<std::string>& sum_formulas,
-                   const std::vector<std::string>& adducts)
-    : IsotopePatternDB(makePairs(sum_formulas, adducts))
-  {
-  }
+      const std::vector<std::string>& adducts)
+      : IsotopePatternDB(makePairs(sum_formulas, adducts)) {}
 
-  IsotopePatternDB(const std::vector<std::pair<std::string, std::string>>& sf_adduct_pairs) :
-    pairs_(sf_adduct_pairs), use_progressbar_(false)
-  {
-  }
+  IsotopePatternDB(
+      const std::vector<std::pair<std::string, std::string>>& sf_adduct_pairs)
+      : pairs_(sf_adduct_pairs), use_progressbar_(false) {}
 
-  IsotopePatternDB(const std::string& dump_filename) {
-    load(dump_filename);
-  }
+  IsotopePatternDB(const std::string& dump_filename) { load(dump_filename); }
 
-  void computeIsotopePatterns(const utils::InstrumentProfile& instrument,
-                              size_t max_peaks=5);
+  void computeIsotopePatterns(
+      const utils::InstrumentProfile& instrument, size_t max_peaks = 5);
 
-  ms::IsotopePattern operator()(const std::string& formula, const std::string& adduct) const {
+  ms::Spectrum operator()(const std::string& formula, const std::string& adduct) const {
     auto& entry = patterns_.at(std::make_pair(formula, adduct));
-    return ms::IsotopePattern{entry.at("mzs"), entry.at("abundances")};
+    return ms::Spectrum{entry.at("mzs"), entry.at("abundances")};
   }
 
-  void useProgressBar(bool use) {
-    use_progressbar_ = use;
-  }
+  void useProgressBar(bool use) { use_progressbar_ = use; }
 
   size_t size() const {
     assert(patterns_.size() == pairs_.size());
     return patterns_.size();
   }
 
-  const std::vector<std::pair<std::string, std::string>>& keys() const {
-    return pairs_;
-  }
+  const std::vector<std::pair<std::string, std::string>>& keys() const { return pairs_; }
 };
-
 }

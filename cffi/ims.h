@@ -10,21 +10,25 @@ double imzb_reader_max_mz(ImzbReader);
 int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 
-typedef void* IsotopePattern;
-IsotopePattern isotope_pattern_new(int n, double* masses, double* abundances);
-IsotopePattern isotope_pattern_new_from_sf(char* formula, double thr, double fft_thr);
-IsotopePattern isotope_pattern_new_from_raw(int n, double* masses, double* intensities, int window_size);
-IsotopePattern isotope_pattern_copy(IsotopePattern);
-float isotope_pattern_envelope(IsotopePattern, double resolution, double mz);
-int isotope_pattern_envelope_plot(IsotopePattern, double resolution, double* mzs, int n, float* out);
-IsotopePattern isotope_pattern_centroids(IsotopePattern, double resolution, double min_abundance,
-                                         int points_per_fwhm);
-int isotope_pattern_size(IsotopePattern);
-void isotope_pattern_masses(IsotopePattern, double*);
-void isotope_pattern_abundances(IsotopePattern, double*);
-void isotope_pattern_add_charge(IsotopePattern, int);
-void isotope_pattern_trim(IsotopePattern, unsigned);
-void isotope_pattern_free(IsotopePattern);
+typedef void* Spectrum;
+Spectrum spectrum_new(int n, double* masses, double* abundances);
+Spectrum spectrum_new_from_sf(char* formula, double thr, double fft_thr);
+Spectrum spectrum_new_from_raw(int n, double* masses, double* intensities, int window_size);
+Spectrum spectrum_copy(Spectrum);
+float spectrum_envelope(Spectrum, double resolution, double mz);
+int spectrum_envelope_plot(Spectrum, double resolution, double* mzs, int n, float* out);
+Spectrum spectrum_envelope_centroids(Spectrum, double resolution, double min_abundance,
+                                     int points_per_fwhm);
+int spectrum_size(Spectrum);
+void spectrum_masses(Spectrum, double*);
+void spectrum_abundances(Spectrum, double*);
+void spectrum_multiply_inplace(Spectrum, double);
+void spectrum_add_inplace(Spectrum, Spectrum);
+void spectrum_add_charge(Spectrum, int);
+void spectrum_normalize(Spectrum);
+Spectrum spectrum_convolve(Spectrum, Spectrum);
+void spectrum_trim(Spectrum, unsigned);
+void spectrum_free(Spectrum);
 
 double measure_of_chaos_f(float* image, int width, int height, int n_levels);
 double measure_of_chaos_d(double* image, int width, int height, int n_levels);

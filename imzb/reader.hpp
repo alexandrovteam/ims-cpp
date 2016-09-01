@@ -23,16 +23,14 @@ class ImzbReader {
   size_t n_peaks_;
   size_t pos_;
 
-  size_t decompressBlock(size_t block_idx,
-                         std::ifstream& in,
-                         std::vector<char>& inbuf,
-                         std::vector<ims::Peak>& outbuf) const;
+  size_t decompressBlock(size_t block_idx, std::ifstream& in, std::vector<char>& inbuf,
+      std::vector<ims::Peak>& outbuf) const;
 
   bool readNextBlock();
 
   bool empty_;
 
-public:
+ public:
   ImzbReader(const std::string& filename);
 
   bool readNext(ims::Peak& peak);
@@ -58,5 +56,4 @@ public:
   void close() { in_.close(); }
   const std::string& filename() const { return fn_; }
 };
-
 }

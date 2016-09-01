@@ -30,8 +30,7 @@ class Sorter {
 
   void dump() {
     std::sort(buffer_.begin(), buffer_.begin() + filled_,
-        [](const ims::Peak& a, const ims::Peak& b) { return a.mz < b.mz; }
-    );
+        [](const ims::Peak& a, const ims::Peak& b) { return a.mz < b.mz; });
     std::stringstream tmp_fn;
     tmp_fn << fn_ << "." << tmp_filenames_.size();
     tmp_filenames_.push_back(tmp_fn.str());
@@ -48,9 +47,7 @@ class Sorter {
     ims::Peak peak;
     size_t file_index;
 
-    bool operator<(const PeakAndFile& other) const {
-      return peak.mz > other.peak.mz;
-    }
+    bool operator<(const PeakAndFile& other) const { return peak.mz > other.peak.mz; }
   };
 
   void merge() {
@@ -62,7 +59,7 @@ class Sorter {
     writer.setMask(mask_);
 
     ims::Peak peak;
-    for (const auto& tmp_fn: tmp_filenames_) {
+    for (const auto& tmp_fn : tmp_filenames_) {
       readers.push_back(std::make_shared<imzb::ImzbReader>(tmp_fn));
       if (readers.back()->readNext(peak))
         queue.push(PeakAndFile{peak, readers.size() - 1});
@@ -82,7 +79,7 @@ class Sorter {
     writer.close();
 
     std::cout << "removing temporary files" << std::endl;
-    for (const auto& r: readers) {
+    for (const auto& r : readers) {
       auto fn = r->filename();
       auto idx_fn = fn + ".idx";
       r->close();
@@ -93,19 +90,21 @@ class Sorter {
   }
 
   const imzb::Mask& mask_;
-public:
-  Sorter(const std::string& filename, const imzb::Mask& mask,
-         size_t buffer_size,
-         const imzb::ImzbCompressionSettings& compression_settings) :
-    fn_(filename), buffer_(buffer_size), filled_(0), closed_(false),
-    c_(compression_settings), mask_(mask)
-  {
+
+ public:
+  Sorter(const std::string& filename, const imzb::Mask& mask, size_t buffer_size,
+      const imzb::ImzbCompressionSettings& compression_settings)
+      : fn_(filename),
+        buffer_(buffer_size),
+        filled_(0),
+        closed_(false),
+        c_(compression_settings),
+        mask_(mask) {
     std::cout << "dumping chunks sorted by m/z..." << std::endl;
   }
 
   void addPeak(const ims::Peak& peak) {
-    if (filled_ == buffer_.size())
-      dump();
+    if (filled_ == buffer_.size()) dump();
     buffer_[filled_++] = peak;
   }
 
@@ -116,8 +115,7 @@ public:
   }
 
   ~Sorter() {
-    if (!closed_)
-      close();
+    if (!closed_) close();
   }
 };
 
@@ -129,18 +127,17 @@ int convert_main(int argc, char** argv) {
   imzb::ImzbCompressionSettings compression_settings;
 
   cxxopts::Options options("ims convert", " <input.imzML> <output.imzb>");
-  options.add_options()
-    ("block-size", "maximum number of records in a compressed block; larger values lead to slower m/z queries but smaller file size",
-     cxxopts::value<uint32_t>(compression_settings.block_size)->default_value("4096"))
-    ("compressor", "blosc compressor to be used",
-     cxxopts::value<std::string>(compression_settings.compressor)->default_value("blosclz"))
-    ("compression-level", "compression level (0-9)",
-     cxxopts::value<int>(compression_level)->default_value("5"))
-    ("help", "Print help");
+  options.add_options()("block-size",
+      "maximum number of records in a compressed block; larger "
+      "values lead to slower m/z queries but smaller file size",
+      cxxopts::value<uint32_t>(compression_settings.block_size)->default_value("4096"))(
+      "compressor", "blosc compressor to be used",
+      cxxopts::value<std::string>(compression_settings.compressor)
+          ->default_value("blosclz"))("compression-level", "compression level (0-9)",
+      cxxopts::value<int>(compression_level)->default_value("5"))("help", "Print help");
 
-  options.add_options("hidden")
-    ("in", "", cxxopts::value<std::string>(input_filename))
-    ("out", "", cxxopts::value<std::string>(output_filename));
+  options.add_options("hidden")("in", "", cxxopts::value<std::string>(input_filename))(
+      "out", "", cxxopts::value<std::string>(output_filename));
 
   options.parse_positional(std::vector<std::string>{"in", "out"});
 
@@ -171,7 +168,8 @@ int convert_main(int argc, char** argv) {
   while (reader->readNextSpectrum(sp)) {
     if (sp.coords.x >= reader->height() || sp.coords.y >= reader->width()) {
       std::cerr << "WARNING: skipped spectrum with invalid coordinates ("
-                << int32_t(sp.coords.x) << ", " << int32_t(sp.coords.y) << ")" << std::endl;
+                << int32_t(sp.coords.x) << ", " << int32_t(sp.coords.y) << ")"
+                << std::endl;
       continue;
     }
     mask.set(sp.coords.x, sp.coords.y);

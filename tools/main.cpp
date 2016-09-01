@@ -2,15 +2,17 @@
 #include <map>
 #include <string>
 
-typedef std::map<std::string, int(*)(int, char**)> SubCmdMap;
+typedef std::map<std::string, int (*)(int, char**)> SubCmdMap;
 #define _(x) extern int x##_main(int, char**)
-#define __(x) {#x, &x##_main}
+#define __(x) \
+  { #x, &x##_main }
 
-   _(convert);  _(isocalc);  _(detect);  _(fdr);
+_(convert);
+_(isocalc);
+_(detect);
+_(fdr);
 
-const SubCmdMap subcommands{
-  __(convert), __(isocalc), __(detect), __(fdr)
-};
+const SubCmdMap subcommands{__(convert), __(isocalc), __(detect), __(fdr)};
 
 #undef _
 #undef __
@@ -24,8 +26,7 @@ int main(int argc, char** argv) {
               << "    detect  - scores metabolite-spectrum matches for a dataset\n"
               << "    fdr     - estimates FDR using decoy database results\n"
               << "\n"
-              << "To get help for a subcommand, run it without any options."
-              << std::endl;
+              << "To get help for a subcommand, run it without any options." << std::endl;
     return 0;
   }
 

@@ -23,17 +23,13 @@ struct Index {
     return idx > 0 ? (idx - 1) : idx;
   }
 
-  uint64_t startOffset(double mz) const {
-    return offsets[startBlock(mz)];
-  }
+  uint64_t startOffset(double mz) const { return offsets[startBlock(mz)]; }
 
   size_t endBlock(double mz) const {
     return std::upper_bound(mzs.begin(), mzs.end(), mz) - mzs.begin();
   }
 
-  uint64_t endOffset(double mz) const {
-    return offsets[endBlock(mz)];
-  }
+  uint64_t endOffset(double mz) const { return offsets[endBlock(mz)]; }
 
   void read(std::ifstream& stream) {
     header.read(stream);
@@ -63,5 +59,4 @@ struct Index {
 };
 
 typedef std::shared_ptr<Index> IndexPtr;
-
 }

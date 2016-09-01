@@ -12,33 +12,23 @@ LibXmlString getAttribute(xmlTextReaderPtr reader, const char* attribute) {
 
 void Metadata::processNode(xmlTextReaderPtr reader) {
   auto accession = getAttribute(reader, "accession");
-  if (accession == nullptr)
-    return;
+  if (accession == nullptr) return;
 
   auto it = supported_accessions_.find(accession);
-  if (it == supported_accessions_.end())
-    return;
+  if (it == supported_accessions_.end()) return;
 
   auto value = getAttribute(reader, "value");
   dict_[it->second] = value;
 }
 
-const std::map<std::string, std::string> Metadata::supported_accessions_ =
-{
-  { "IMS:1000042", "max count of pixels x" },
-  { "IMS:1000043", "max count of pixels y" },
-  { "IMS:1000044", "max dimension x" },
-  { "IMS:1000045", "max dimension y" },
-  { "IMS:1000046", "pixel size x" },
-  { "IMS:1000047", "pixel size y" },
-  { "IMS:1000835", "matrix solution concentration" },
-  {  "MS:1000843", "wavelength" },
-  {  "MS:1000844", "focus diameter x" },
-  {  "MS:1000845", "focus diameter y" },
-  {  "MS:1000846", "pulse energy" },
-  {  "MS:1000847", "pulse duration" },
-  {  "MS:1000848", "attenuation" }
-};
+const std::map<std::string, std::string> Metadata::supported_accessions_ = {
+    {"IMS:1000042", "max count of pixels x"}, {"IMS:1000043", "max count of pixels y"},
+    {"IMS:1000044", "max dimension x"}, {"IMS:1000045", "max dimension y"},
+    {"IMS:1000046", "pixel size x"}, {"IMS:1000047", "pixel size y"},
+    {"IMS:1000835", "matrix solution concentration"}, {"MS:1000843", "wavelength"},
+    {"MS:1000844", "focus diameter x"}, {"MS:1000845", "focus diameter y"},
+    {"MS:1000846", "pulse energy"}, {"MS:1000847", "pulse duration"},
+    {"MS:1000848", "attenuation"}};
 
 void ImzmlReader::readMetadata() {
   std::string current_param_group;
@@ -69,15 +59,15 @@ LibXmlString ImzmlReader::getAttribute(const char* attribute) {
   return imzml::getAttribute(xml_reader_, attribute);
 }
 
-ImzmlReader::ImzmlReader(const std::string& filename) : filename_{filename}, have_next_{false} {
+ImzmlReader::ImzmlReader(const std::string& filename)
+    : filename_{filename}, have_next_{false} {
   xml_reader_ = xmlNewTextReaderFilename(filename.c_str());
   ibd_filename_ = filename_.substr(0, filename_.length() - 5) + "ibd";
   readMetadata();
 }
 
 bool ImzmlReader::readNextSpectrum(ims::Spectrum& spectrum) {
-  if (!have_next_)
-    return false;
+  if (!have_next_) return false;
 
   have_next_ = false;
 
@@ -93,12 +83,18 @@ bool ImzmlReader::readNextSpectrum(ims::Spectrum& spectrum) {
 
     if (name == "cvParam") {
       auto accession = getAttribute("accession");
-      if      (accession == "IMS:1000050") readIntValue(spectrum.coords.x);
-      else if (accession == "IMS:1000051") readIntValue(spectrum.coords.y);
-      else if (accession == "IMS:1000052") readIntValue(spectrum.coords.z);
-      else if (accession == "IMS:1000102") readIntValue(array->file_offset);
-      else if (accession == "IMS:1000103") readIntValue(array->length);
-      else if (accession == "IMS:1000104") readIntValue(array->encoded_length);
+      if (accession == "IMS:1000050")
+        readIntValue(spectrum.coords.x);
+      else if (accession == "IMS:1000051")
+        readIntValue(spectrum.coords.y);
+      else if (accession == "IMS:1000052")
+        readIntValue(spectrum.coords.z);
+      else if (accession == "IMS:1000102")
+        readIntValue(array->file_offset);
+      else if (accession == "IMS:1000103")
+        readIntValue(array->length);
+      else if (accession == "IMS:1000104")
+        readIntValue(array->encoded_length);
     } else if (name == "spectrum" && isNodeStart()) {
       have_next_ = true;
       break;
@@ -133,5 +129,4 @@ uint32_t ImzmlReader::height() const {
 uint32_t ImzmlReader::width() const {
   return 1 + atoi(dict().find("max count of pixels y")->second.c_str());
 }
-
 }

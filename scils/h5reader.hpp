@@ -48,23 +48,20 @@ class H5Reader : public ims::AbstractReader {
     auto it = v.begin();
     for (;;) {
       auto curr_value = *it;
-      if (++it == v.end())
-        break;
+      if (++it == v.end()) break;
       auto diff = *it - curr_value;
-      if (diff > 1e-4)
-        sum_diff += diff, ++n;
+      if (diff > 1e-4) sum_diff += diff, ++n;
     }
     auto step = n > 0 ? sum_diff / n : 1.0;
-    for (auto& val: values)
+    for (auto& val : values)
       val = (val - *v.begin()) / step;
 
     return 1 + *std::max_element(values.begin(), values.end());
   }
 
-public:
-  H5Reader(const std::string& filename) :
-    file_(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT))
-  {
+ public:
+  H5Reader(const std::string& filename)
+      : file_(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT)) {
     readCoordinates();
     ncol_ = normalizeGrid(x_coords_);
     nrow_ = normalizeGrid(y_coords_);
@@ -72,9 +69,7 @@ public:
     curr_idx_ = 0;
   }
 
-  ~H5Reader() {
-    H5Fclose(file_);
-  }
+  ~H5Reader() { H5Fclose(file_); }
 
   int version() {
     int version;
@@ -83,19 +78,15 @@ public:
     return version;
   }
 
-  uint32_t width() const {
-    return ncol_;
-  }
+  uint32_t width() const { return ncol_; }
 
-  uint32_t height() const {
-    return nrow_;
-  }
+  uint32_t height() const { return nrow_; }
 
   bool readNextSpectrum(ims::Spectrum& spectrum) {
-    if (curr_idx_ >= x_coords_.size())
-      return false;
+    if (curr_idx_ >= x_coords_.size()) return false;
 
-    auto dataset = "Spots/" + std::to_string(curr_idx_) + "/InitialMeasurement/Intensities";
+    auto dataset =
+        "Spots/" + std::to_string(curr_idx_) + "/InitialMeasurement/Intensities";
 
     if (intensities_buf_.empty()) {
       hsize_t ndims[1] = {0};
@@ -114,12 +105,10 @@ public:
 
     spectrum.mzs = mzs_buf_;
     spectrum.coords = ims::Position{uint32_t(nrow_ - 1 - y_coords_[curr_idx_]),
-                                    uint32_t(x_coords_[curr_idx_]),
-                                    uint32_t(z_coords_[curr_idx_])};
+        uint32_t(x_coords_[curr_idx_]), uint32_t(z_coords_[curr_idx_])};
 
     ++curr_idx_;
     return true;
   }
 };
-
 }

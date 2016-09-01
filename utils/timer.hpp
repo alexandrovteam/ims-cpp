@@ -23,11 +23,9 @@ class ProfilingTimer {
     out_.open(output_file, std::ofstream::out | std::ofstream::app);
   }
 
-  ~ProfilingTimer() {
-    out_.close();
-  }
+  ~ProfilingTimer() { out_.close(); }
 
-public:
+ public:
   inline static ProfilingTimer& instance() {
     static ProfilingTimer timer("ims_isocalc_profile.log");
     return timer;
@@ -44,14 +42,13 @@ public:
   }
 
   template <typename T>
-  ProfilingTimer& operator <<(const T& obj) {
+  ProfilingTimer& operator<<(const T& obj) {
     message_ << obj;
     return *this;
   }
 
   void stop() {
-    if (!started_)
-      return;
+    if (!started_) return;
 
     started_ = false;
     auto end_ = clock_.now();
@@ -61,22 +58,23 @@ public:
     out_ << "[ " << message_.str() << " ] ~ " << milli << std::endl;
   }
 };
-
 }
-#else // no-op logger
+#else  // no-op logger
 namespace utils {
-  struct ProfilingTimer {
-    inline static ProfilingTimer& instance() {
-      static ProfilingTimer timer;
-      return timer;
-    }
+struct ProfilingTimer {
+  inline static ProfilingTimer& instance() {
+    static ProfilingTimer timer;
+    return timer;
+  }
 
-    void start() {}
-    void stop() {}
-    void reset() {}
+  void start() {}
+  void stop() {}
+  void reset() {}
 
-    template <typename T>
-    ProfilingTimer& operator <<(const T&) { return *this; }
-  };
+  template <typename T>
+  ProfilingTimer& operator<<(const T&) {
+    return *this;
+  }
+};
 }
 #endif

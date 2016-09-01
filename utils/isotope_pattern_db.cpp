@@ -13,15 +13,13 @@ extern "C" {
 
 namespace utils {
 
-void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& instrument,
-                                              size_t max_peaks)
-{
+void IsotopePatternDB::computeIsotopePatterns(
+    const utils::InstrumentProfile& instrument, size_t max_peaks) {
   std::mutex map_mutex;
 
   progressbar* bar = nullptr;
   const int BAR_STEP = 100;
-  if (use_progressbar_)
-    bar = progressbar_new("", pairs_.size() / BAR_STEP);
+  if (use_progressbar_) bar = progressbar_new("", pairs_.size() / BAR_STEP);
 
   std::chrono::high_resolution_clock clock;
 
@@ -30,8 +28,7 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
     const auto& f = pairs_[i].first;
     auto adduct = pairs_[i].second;
     int charge = adduct[0] == '-' ? -1 : +1;
-    if (adduct[0] != '-' && adduct[0] != '+')
-      adduct = "+" + adduct;
+    if (adduct[0] != '-' && adduct[0] != '+') adduct = "+" + adduct;
     auto full_formula = f + adduct;
     try {
       auto res = instrument.resolutionAt(ms::monoisotopicMass(full_formula));
@@ -40,7 +37,7 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
       auto pattern = ms::computeIsotopePattern(full_formula);
 
       auto t2 = clock.now();
-      pattern = pattern.centroids(res).charged(charge).trimmed(max_peaks);
+      pattern = pattern.envelopeCentroids(res).charged(charge).trimmed(max_peaks);
 
       auto t3 = clock.now();
       auto key = std::make_pair(f, adduct);
@@ -48,17 +45,15 @@ void IsotopePatternDB::computeIsotopePatterns(const utils::InstrumentProfile& in
       std::lock_guard<std::mutex> lock(map_mutex);
       patterns_[key]["mzs"] = pattern.masses;
       patterns_[key]["abundances"] = pattern.abundances;
-      patterns_[key]["time"] = std::vector<double>{
-        std::chrono::duration<double, std::milli>(t2 - t1).count(),
-        std::chrono::duration<double, std::milli>(t3 - t2).count()
-      };
+      patterns_[key]["time"] =
+          std::vector<double>{std::chrono::duration<double, std::milli>(t2 - t1).count(),
+              std::chrono::duration<double, std::milli>(t3 - t2).count()};
     } catch (sf_parser::NegativeTotalError) {
       // ignore formulas for which adduct subtraction is impossible
     }
 
     std::lock_guard<std::mutex> lock(map_mutex);
-    if (bar != nullptr && (i + 1) % BAR_STEP == 0)
-      progressbar_inc(bar);
+    if (bar != nullptr && (i + 1) % BAR_STEP == 0) progressbar_inc(bar);
   }
 
   if (bar != nullptr) {
@@ -78,8 +73,7 @@ void IsotopePatternDB::save(const std::string& output_filename) {
     throw std::runtime_error("can't open " + output_filename + " for writing");
 }
 
-void IsotopePatternDB::load(const std::string& input_filename)
-{
+void IsotopePatternDB::load(const std::string& input_filename) {
   // load precomputed isotope patterns from msgpack file
   std::ifstream in(input_filename, std::ios::binary | std::ios::ate);
   size_t bufsize = in.tellg();
@@ -93,7 +87,7 @@ void IsotopePatternDB::load(const std::string& input_filename)
 
   msgpack::object obj = unpacked.get();
   obj.convert(patterns_);
-  for (auto& item: patterns_) pairs_.push_back(item.first);
+  for (auto& item : patterns_)
+    pairs_.push_back(item.first);
 }
-
 }

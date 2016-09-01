@@ -20,27 +20,26 @@ struct Metrics {
   double img_corr;
   double iso_corr;
   double moc;
+  double median_mz_shift;
+  int num_pixels;
 };
 
 int detect_main(int argc, char** argv) {
   std::string db_filename, imzb_filename;
   std::string output_filename;
   double ppm;
-  bool remove_hotspots;
+  int remove_hotspots;
 
   cxxopts::Options options("ims detect", " <isotope_patterns.db> <input.imzb>");
-  options.add_options()
-    ("ppm", "m/z-window half-width in ppm",
-     cxxopts::value<double>(ppm)->default_value("3.0"))
-    ("out", "Output filename",
-     cxxopts::value<std::string>(output_filename)->default_value("/dev/stdout"))
-    ("remove-hotspots", "Apply hotspot removal prior to computing metrics",
-     cxxopts::value<bool>(remove_hotspots)->default_value("true"))
-    ("help", "Print help");
+  options.add_options()("ppm", "m/z-window half-width in ppm",
+      cxxopts::value<double>(ppm)->default_value("3.0"))("out", "Output filename",
+      cxxopts::value<std::string>(output_filename)->default_value("/dev/stdout"))(
+      "remove-hotspots", "Apply hotspot removal prior to computing metrics",
+      cxxopts::value<int>(remove_hotspots)->default_value("1"))("help", "Print help");
 
-  options.add_options("hidden")
-    ("db_filename", "", cxxopts::value<std::string>(db_filename))
-    ("input_file", "", cxxopts::value<std::string>(imzb_filename));
+  options.add_options("hidden")(
+      "db_filename", "", cxxopts::value<std::string>(db_filename))(
+      "input_file", "", cxxopts::value<std::string>(imzb_filename));
 
   options.parse_positional(std::vector<std::string>{"db_filename", "input_file"});
 
@@ -71,8 +70,7 @@ int detect_main(int argc, char** argv) {
     std::string adduct = keys[i].second;
 
     auto p = db(f, adduct);
-    if (p.size() == 0)
-      continue;
+    if (p.size() == 0) continue;
 
     if (images.size() < p.size()) {
       for (size_t i = images.size(); i < p.size(); i++)
@@ -84,18 +82,23 @@ int detect_main(int argc, char** argv) {
 
     for (size_t j = 0; j < p.size(); ++j) {
       reader.readImage(p.masses[j], ppm, images[j].rawPtr());
-      if (remove_hotspots)
-        images[j].removeHotspots(99.0, &hotspot_removal_buf[0]);
+      if (remove_hotspots) images[j].removeHotspots(99.0, &hotspot_removal_buf[0]);
     }
 
-    auto img_corr = ims::isotopeImageCorrelation(&images[0], p.size(), p.abundances);
+    auto img_corr =
+        ims::isotopeImageCorrelation(&images[0], p.size(), p.abundances, true);
     auto iso_corr = ims::isotopePatternMatch(&images[0], p.size(), p.abundances);
     auto moc = ims::measureOfChaos(images[0], 30);
-    metrics[i] = Metrics{img_corr, iso_corr, moc};
+
+    auto min_mz = p.masses[0] * (1.0 - ppm * 1e-6);
+    auto max_mz = p.masses[0] * (1.0 + ppm * 1e-6);
+    auto peaks = reader.slice(min_mz, max_mz);
+    auto mz_shift = ims::medianMzShift(peaks, p.masses[0]);
+    auto num_pixels = int(peaks.size());
+    metrics[i] = Metrics{img_corr, iso_corr, moc, mz_shift, num_pixels};
 
     std::lock_guard<std::mutex> lock(bar_mutex);
-    if ((i + 1) % BAR_STEP == 0)
-      progressbar_inc(bar);
+    if ((i + 1) % BAR_STEP == 0) progressbar_inc(bar);
   }
 
   progressbar_finish(bar);
@@ -111,6 +114,8 @@ int detect_main(int argc, char** argv) {
     m.img_corr = metrics[i].img_corr;
     m.iso_corr = metrics[i].iso_corr;
     m.chaos = metrics[i].moc;
+    m.median_mz_shift = metrics[i].median_mz_shift;
+    m.num_pixels = metrics[i].num_pixels;
     out << m << "\n";
   }
 

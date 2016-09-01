@@ -12,22 +12,20 @@
 #include <memory>
 
 void printAdducts(const std::vector<std::string>& adducts) {
-  for (auto& a: adducts) {
+  for (auto& a : adducts) {
     std::cout << a;
-    if (a != adducts.back())
-      std::cout << ", ";
+    if (a != adducts.back()) std::cout << ", ";
   }
 }
 
 std::vector<std::string> parseAdducts(const std::string& adducts_str) {
   std::regex regex{","};
   std::set<std::string> tmp{
-    std::sregex_token_iterator(adducts_str.begin(), adducts_str.end(), regex, -1),
+      std::sregex_token_iterator(adducts_str.begin(), adducts_str.end(), regex, -1),
       std::sregex_token_iterator()};
   std::set<std::string> adducts;
-  for (auto& a: tmp) {
-    if (a.empty())
-      continue;
+  for (auto& a : tmp) {
+    if (a.empty()) continue;
     bool has_sign = a[0] == '+' || a[0] == '-';
     try {
       sf_parser::parseSumFormula(a);
@@ -49,7 +47,6 @@ void saveIsotopeDB(utils::IsotopePatternDB& db, std::string output_fn) {
 }
 
 int isocalc_main(int argc, char** argv) {
-
   double resolution;
   unsigned max_peaks;
 
@@ -58,25 +55,25 @@ int isocalc_main(int argc, char** argv) {
   std::string instrument_type;
 
   cxxopts::Options options("ims isocalc",
-  " <input.txt> <output.db>\n\t\t\twhere input contains one sum formula per line.");
-  options.add_options()
-    ("resolution",      "Resolving power at m/z=200",
-     cxxopts::value<double>(resolution)->default_value("140000.0"))
-    ("adducts",         "Comma-separated list of adducts",
-     cxxopts::value<std::string>(adducts_str)->default_value("+H,+K,+Na"))
-    ("max-peaks",       "Maximum number of peaks to store",
-     cxxopts::value<unsigned>(max_peaks)->default_value("5"))
-    ("decoy-adducts",  "Adducts for generating a decoy database (stored in a separate file named <output.db.decoy>)",
-     cxxopts::value<std::string>(decoy_adducts_str)->default_value(""))
-    ("instrument",     "Instrument type (orbitrap|fticr)",
-     cxxopts::value<std::string>(instrument_type)->default_value("orbitrap"))
-    ("help", "Print help");
+      " <input.txt> "
+      "<output.db>\n\t\t\twhere input "
+      "contains one sum formula per line.");
+  options.add_options()("resolution", "Resolving power at m/z=200",
+      cxxopts::value<double>(resolution)->default_value("140000.0"))("adducts",
+      "Comma-separated list of adducts",
+      cxxopts::value<std::string>(adducts_str)->default_value("+H,+K,+Na"))("max-peaks",
+      "Maximum number of peaks to store",
+      cxxopts::value<unsigned>(max_peaks)->default_value("5"))("decoy-adducts",
+      "Adducts for generating a decoy database (stored in a "
+      "separate file named <output.db.decoy>)",
+      cxxopts::value<std::string>(decoy_adducts_str)->default_value(""))("instrument",
+      "Instrument type (orbitrap|fticr)",
+      cxxopts::value<std::string>(instrument_type)->default_value("orbitrap"))(
+      "help", "Print help");
 
-  options.add_options("hidden")
-    ("input-file",      "List of sum formulas, one per line",
-     cxxopts::value<std::string>(input_file))
-    ("output-file",     "Output file",
-     cxxopts::value<std::string>(output_file));
+  options.add_options("hidden")("input-file", "List of sum formulas, one per line",
+      cxxopts::value<std::string>(input_file))(
+      "output-file", "Output file", cxxopts::value<std::string>(output_file));
 
   options.parse_positional(std::vector<std::string>{"input-file", "output-file"});
   options.parse(argc, argv);

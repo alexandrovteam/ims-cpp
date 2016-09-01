@@ -1,4 +1,4 @@
-#include "ms/isotope_pattern.hpp"
+#include "ms/spectrum.hpp"
 #include "ms/periodic_table.hpp"
 
 #include <vector>
@@ -12,21 +12,19 @@
 
 namespace ms {
 
-void IsotopePattern::addCharge(int charge) {
-  for (auto& m: masses)
+void Spectrum::addCharge(int charge) {
+  for (auto& m : masses)
     m -= charge * ms::electronMass;
 }
 
-static bool isNormalized(const IsotopePattern& p) {
-  if (p.abundances[0] != 1.0)
-    return false;
+static bool isNormalized(const Spectrum& p) {
+  if (p.abundances[0] != 1.0) return false;
   for (size_t i = 1; i < p.size(); i++)
-    if (p.abundances[i - 1] < p.abundances[i])
-      return false;
+    if (p.abundances[i - 1] < p.abundances[i]) return false;
   return true;
 }
 
-IsotopePattern IsotopePattern::multiply(const IsotopePattern& other, double threshold) const {
+Spectrum Spectrum::convolve(const Spectrum& other, double threshold) const {
   if (this->isUnit()) return other;
   if (other.isUnit()) return *this;
 
@@ -36,7 +34,7 @@ IsotopePattern IsotopePattern::multiply(const IsotopePattern& other, double thre
   assert(isNormalized(p1));
   assert(isNormalized(p2));
 
-  IsotopePattern result;
+  Spectrum result;
 
   for (size_t i = 0; i < n1; i++)
     for (size_t j = 0; j < n2; j++) {
@@ -45,8 +43,7 @@ IsotopePattern IsotopePattern::multiply(const IsotopePattern& other, double thre
         result.masses.push_back(p1.masses[i] + p2.masses[j]);
         result.abundances.push_back(abundance);
       } else {
-        if (j == 0)
-          break;
+        if (j == 0) break;
         n2 = j;
       }
     }
@@ -54,9 +51,8 @@ IsotopePattern IsotopePattern::multiply(const IsotopePattern& other, double thre
   return result;
 }
 
-static void sortIsotopePattern(std::vector<double>& masses, std::vector<double>& abundances,
-                               std::function<bool(size_t, size_t)> cmp)
-{
+static void sortSpectrum(std::vector<double>& masses, std::vector<double>& abundances,
+    std::function<bool(size_t, size_t)> cmp) {
   auto n = masses.size();
   std::vector<size_t> index(masses.size());
   std::iota(index.begin(), index.end(), 0);
@@ -71,39 +67,44 @@ static void sortIsotopePattern(std::vector<double>& masses, std::vector<double>&
   abundances.swap(tmp);
 }
 
-void IsotopePattern::normalize() {
-  sortIsotopePattern(masses, abundances, [&](size_t i, size_t j) {
-    return abundances[i] > abundances[j];
-  });
+void Spectrum::sortByIntensity() {
+  sortSpectrum(masses, abundances,
+      [&](size_t i, size_t j) { return abundances[i] > abundances[j]; });
+}
+
+void Spectrum::sortByMass() {
+  sortSpectrum(
+      masses, abundances, [&](size_t i, size_t j) { return masses[i] < masses[j]; });
+}
+
+void Spectrum::normalize() {
+  sortByIntensity();
   auto top = abundances[0];
   if (top > 0)
-    for (auto& item: abundances)
+    for (auto& item : abundances)
       item /= top;
 }
 
-IsotopePattern sortByMass(const ms::IsotopePattern& p) {
-  IsotopePattern result = p;
-  sortIsotopePattern(result.masses, result.abundances, [&](size_t i, size_t j) {
-    return result.masses[i] < result.masses[j];
-  });
+Spectrum sortByMass(const ms::Spectrum& p) {
+  Spectrum result = p;
+  result.sortByMass();
   return result;
 }
 
-double IsotopePattern::envelope(double resolution, double mz, size_t width) const {
+double Spectrum::envelope(double resolution, double mz, size_t width) const {
   double result = 0.0;
 
   double sigma = ms::sigmaAtResolution(*this, resolution);
 
   for (size_t k = 0; k < size(); ++k) {
-    if (std::fabs(masses[k] - mz) > width * sigma)
-      continue;
+    if (std::fabs(masses[k] - mz) > width * sigma) continue;
     result += abundances[k] * std::exp(-0.5 * std::pow((masses[k] - mz) / sigma, 2));
   }
   return result;
 }
 
 double EnvelopeGenerator::envelope(double mz) {
-  if (empty_space_) return 0.0; // no isotopic peaks nearby
+  if (empty_space_) return 0.0;  // no isotopic peaks nearby
   double result = 0.0;
   int k = peak_index_, n = p_.size();
   while (k > 0 && mz - p_.masses[k - 1] < width_ * sigma_)
@@ -124,33 +125,30 @@ double EnvelopeGenerator::operator()(double mz) {
     throw std::runtime_error("input to EnvelopeGenerator must be sorted");
 
   if (mz > p_.masses[peak_index_] + width_ * sigma_)
-    empty_space_ = true; // the last peak's influence is now considered negligible
+    empty_space_ = true;  // the last peak's influence is now considered negligible
 
   if (empty_space_ && peak_index_ + 1 < p_.size() &&
-      mz >= p_.masses[peak_index_ + 1] - width_ * sigma_)
-  {
+      mz >= p_.masses[peak_index_ + 1] - width_ * sigma_) {
     empty_space_ = false;
-    ++peak_index_; // reached next peak
+    ++peak_index_;  // reached next peak
   }
 
   last_mz_ = mz;
   return envelope(mz);
 }
 
-double sigmaAtResolution(const IsotopePattern& p, double resolution) {
-  if (p.size() == 0 || resolution <= 0)
-    return NAN;
-  auto fwhm = p.masses[0] / resolution;
+double sigmaAtResolution(const Spectrum& s, double resolution) {
+  if (s.size() == 0 || resolution <= 0) return NAN;
+  auto fwhm = s.masses[0] / resolution;
   return fwhm / fwhm_to_sigma;
 }
 
-constexpr size_t centroid_bins = 15;
-
-IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance, size_t points_per_fwhm) const {
-  if (this->isUnit() || this->masses.size() == 0)
-    return *this;
+Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
+    size_t points_per_fwhm, size_t centroid_bins) const {
+  if (this->isUnit() || this->masses.size() == 0) return *this;
   if (points_per_fwhm < 5)
     throw std::logic_error("points_per_fwhm must be at least 5 for meaningful results");
+  if (centroid_bins < 3) throw std::logic_error("centroid_bins must be at least 3");
 
   const size_t width = 12;
   double sigma = ms::sigmaAtResolution(*this, resolution);
@@ -161,7 +159,7 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
 
   EnvelopeGenerator envelope(*this, resolution, width);
 
-  std::array<double, centroid_bins> mz_window, int_window;
+  std::vector<double> mz_window(centroid_bins), int_window(centroid_bins);
   size_t center = centroid_bins / 2, last_idx = centroid_bins - 1;
   mz_window[center] = min_mz - width * sigma;
   for (size_t j = 0; j < centroid_bins; j++) {
@@ -173,19 +171,16 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
   auto next = [&](size_t idx) { return idx == centroid_bins - 1 ? 0 : idx + 1; };
   auto rotateWindows = [&](int shift) -> void {
     auto abs_shift = (shift + int(centroid_bins)) % centroid_bins;
-    std::rotate(mz_window.begin(),
-                mz_window.begin() + abs_shift, mz_window.end());
-    std::rotate(int_window.begin(),
-                int_window.begin() + abs_shift, int_window.end());
+    std::rotate(mz_window.begin(), mz_window.begin() + abs_shift, mz_window.end());
+    std::rotate(int_window.begin(), int_window.begin() + abs_shift, int_window.end());
   };
 
-  ms::IsotopePattern result;
+  ms::Spectrum result;
   for (;;) {
     center = next(center);
 
     auto next_mz = mz_window[last_idx] + step;
-    if (next_mz > max_mz + width * sigma)
-      break;
+    if (next_mz > max_mz + width * sigma) break;
 
     last_idx = next(last_idx);
     mz_window[last_idx] = next_mz;
@@ -193,18 +188,17 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
 
     // check if it's a local maximum
     if (!(int_window[prev(center)] < int_window[center] &&
-          int_window[center] >= int_window[next(center)]))
+            int_window[center] >= int_window[next(center)]))
       continue;
 
     // skip low-intensity peaks
-    if (int_window[center] < min_abundance)
-      continue;
+    if (int_window[center] < min_abundance) continue;
 
     double m, intensity;
     auto shift = int(centroid_bins - 1 - last_idx);
     rotateWindows(-shift);
-    std::tie(m, intensity) = centroid(mz_window.begin(), mz_window.end(),
-                                      int_window.begin());
+    std::tie(m, intensity) =
+        centroid(mz_window.begin(), mz_window.end(), int_window.begin());
     rotateWindows(shift);
     result.masses.push_back(m);
     result.abundances.push_back(intensity);
@@ -217,6 +211,4 @@ IsotopePattern IsotopePattern::centroids(double resolution, double min_abundance
   result.removeAbundancesBelow(min_abundance);
   return result;
 }
-
-
 }

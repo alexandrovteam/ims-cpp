@@ -124,7 +124,7 @@ set(SRC_COMMON
   imzb/writer.cpp
   ims/image_measures.cpp
   ms/isocalc.cpp
-  ms/isotope_pattern.cpp
+  ms/spectrum.cpp
   ms/periodic_table.cpp
   )
 add_library(libims STATIC ${SRC_COMMON})
@@ -166,7 +166,7 @@ endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 
-add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/isotope_pattern.cpp ms/periodic_table.cpp)
+add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/spectrum.cpp ms/periodic_table.cpp)
 target_compile_options(ms_cffi PUBLIC -std=c++11)
 add_dependencies(ms_cffi kissfft)
 target_link_libraries(ms_cffi kissfft)

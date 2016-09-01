@@ -13,11 +13,9 @@ struct Mask {
   uint32_t height, width;
   std::vector<uint64_t> data;
 
-  Mask(): height(0), width(0) {}
+  Mask() : height(0), width(0) {}
 
-  Mask(uint32_t height, uint32_t width) {
-    resize(height, width);
-  }
+  Mask(uint32_t height, uint32_t width) { resize(height, width); }
 
   void resize(uint32_t height, uint32_t width) {
     this->height = height;
@@ -57,16 +55,15 @@ struct FileHeader {
     binary_read(stream, mask.height);
     binary_read(stream, mask.width);
     mask.resize(mask.height, mask.width);
-    stream.read(reinterpret_cast<char*>(&mask.data[0]),
-                mask.data.size() * sizeof(uint64_t));
+    stream.read(
+        reinterpret_cast<char*>(&mask.data[0]), mask.data.size() * sizeof(uint64_t));
 
     if (stream.tellg() == pos + header_len) {
       version = 0;
       block_size = 4096;
     } else {
       binary_read(stream, version);
-      if (version >= 1)
-        binary_read(stream, block_size);
+      if (version >= 1) binary_read(stream, block_size);
       if (version >= 2) {
         binary_read(stream, min_mz);
         binary_read(stream, max_mz);
@@ -84,8 +81,8 @@ struct FileHeader {
     binary_write(stream, header_len);
     binary_write(stream, mask.height);
     binary_write(stream, mask.width);
-    stream.write(reinterpret_cast<char*>(&mask.data[0]),
-                 mask.data.size() * sizeof(uint64_t));
+    stream.write(
+        reinterpret_cast<char*>(&mask.data[0]), mask.data.size() * sizeof(uint64_t));
 
     binary_write(stream, version);
     binary_write(stream, block_size);
@@ -93,5 +90,4 @@ struct FileHeader {
     binary_write(stream, max_mz);
   }
 };
-
 }
