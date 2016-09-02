@@ -44,7 +44,7 @@ void IsotopePatternDB::computeIsotopePatterns(
 
       std::lock_guard<std::mutex> lock(map_mutex);
       patterns_[key]["mzs"] = pattern.masses;
-      patterns_[key]["abundances"] = pattern.abundances;
+      patterns_[key]["abundances"] = pattern.intensities;
       patterns_[key]["time"] =
           std::vector<double>{std::chrono::duration<double, std::milli>(t2 - t1).count(),
               std::chrono::duration<double, std::milli>(t3 - t2).count()};

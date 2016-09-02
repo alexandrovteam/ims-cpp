@@ -86,8 +86,8 @@ int detect_main(int argc, char** argv) {
     }
 
     auto img_corr =
-        ims::isotopeImageCorrelation(&images[0], p.size(), p.abundances, true);
-    auto iso_corr = ims::isotopePatternMatch(&images[0], p.size(), p.abundances);
+        ims::isotopeImageCorrelation(&images[0], p.size(), p.intensities, true);
+    auto iso_corr = ims::isotopePatternMatch(&images[0], p.size(), p.intensities);
     auto moc = ims::measureOfChaos(images[0], 30);
 
     auto min_mz = p.masses[0] * (1.0 - ppm * 1e-6);

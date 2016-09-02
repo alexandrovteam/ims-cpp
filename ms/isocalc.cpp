@@ -122,9 +122,9 @@ Spectrum computeIsotopePattern(
 
   // array setup
   const auto& iso = element.isotope_pattern;
-  arr.scalar_data()[0] = iso.abundances[0];
+  arr.scalar_data()[0] = iso.intensities[0];
   for (size_t i = 0, k = 1; i < dim; i++, k *= edge_len)
-    arr.scalar_data()[k] = iso.abundances[dim - i];
+    arr.scalar_data()[k] = iso.intensities[dim - i];
 
   // forward FFT
   arr.forwardFFT();
@@ -154,7 +154,7 @@ Spectrum computeIsotopePattern(
       mass += (amount - n) * iso.masses[0];
 
       isotope_pattern.masses.push_back(mass);
-      isotope_pattern.abundances.push_back(arr.scalar_data()[i]);
+      isotope_pattern.intensities.push_back(arr.scalar_data()[i]);
     }
 
     if (i == arr.size() - 1) break;
@@ -166,8 +166,7 @@ Spectrum computeIsotopePattern(
       indices[k] = 0;
   }
 
-  isotope_pattern.normalize();
-  return isotope_pattern;
+  return isotope_pattern.normalize();
 }
 
 Spectrum computeIsotopePattern(
@@ -189,7 +188,7 @@ Spectrum computeIsotopePattern(
     }
   }
 
-  return result.removeAbundancesBelow(threshold);
+  return result.removeIntensitiesBelow(threshold);
 }
 
 Spectrum computeIsotopePattern(

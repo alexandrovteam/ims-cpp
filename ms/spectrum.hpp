@@ -13,31 +13,42 @@
 
 namespace ms {
 
+enum class PeakOrder {
+  mass,       // ascending mass
+  intensity,  // descending intensity
+  none        // unsorted
+};
+
 struct Spectrum {
   std::vector<double> masses;
-  std::vector<double> abundances;
+  std::vector<double> intensities;
 
   Spectrum() {}
-  Spectrum(double mass) : masses{mass}, abundances{1.0} {}
-  Spectrum(std::initializer_list<double> masses, std::initializer_list<double> abundances)
-      : masses{masses}, abundances{abundances} {}
+  Spectrum(double mass) : masses{mass}, intensities{1.0} {}
+  Spectrum(
+      std::initializer_list<double> masses, std::initializer_list<double> intensities)
+      : masses{masses}, intensities{intensities} {}
 
-  Spectrum(std::vector<double> masses, std::vector<double> abundances)
-      : masses{masses}, abundances{abundances} {}
+  Spectrum(std::vector<double> masses, std::vector<double> intensities)
+      : masses{masses}, intensities{intensities} {}
 
   // shifts masses accordingly to the number of added/subtracted electrons
   void addCharge(int charge);
 
+  // Scales all intensities by a factor
   Spectrum& operator*=(double mult) {
-    for (auto& m : abundances)
+    for (auto& m : intensities)
       m *= mult;
     return *this;
   }
 
+  // Adds another spectrum. For performance reasons the spectrum becomes unsorted,
+  // so that after adding multiple spectra everything can be sorted at once.
   Spectrum& operator+=(const Spectrum& other) {
     std::copy(other.masses.begin(), other.masses.end(), std::back_inserter(this->masses));
-    std::copy(other.abundances.begin(), other.abundances.end(),
-        std::back_inserter(this->abundances));
+    std::copy(other.intensities.begin(), other.intensities.end(),
+        std::back_inserter(this->intensities));
+    peak_order_ = PeakOrder::none;
     return *this;
   }
 
@@ -46,44 +57,70 @@ struct Spectrum {
     return *this;
   }
 
+  // Returns intensity-sorted spectrum with new_size peaks
   Spectrum& trimmed(size_t new_size) {
+    sortByIntensity();
     if (new_size < size()) {
       masses.resize(new_size);
-      abundances.resize(new_size);
+      intensities.resize(new_size);
     }
     return *this;
   }
 
-  Spectrum& removeAbundancesBelow(double min_abundance) {
-    auto it = std::upper_bound(
-        abundances.begin(), abundances.end(), min_abundance, std::greater<double>());
-    return this->trimmed(it - abundances.begin());
+  // Removes peaks with intensity less than min_intensity.
+  // Keeps peak sorting order.
+  Spectrum& removeIntensitiesBelow(double min_intensity) {
+    std::vector<double> ms;
+    std::vector<double> is;
+    size_t n = size();
+    for (size_t i = 0; i < n; i++)
+      if (intensities[i] >= min_intensity)
+        ms.push_back(masses[i]), is.push_back(intensities[i]);
+    masses.swap(ms);
+    intensities.swap(is);
   }
 
   Spectrum copy() const {
-    Spectrum p{masses, abundances};
+    Spectrum p{masses, intensities};
+    p.peak_order_ = this->peak_order_;
     return p;
   }
 
-  bool isUnit() const { return masses.size() == 1 && masses[0] == 0.0; }
+  // Sorts peaks by decreasing intensity and scales max intensity to 1
+  Spectrum& normalize();
 
+  // Normalized intensity-sorted convolution of two spectra.
+  // Here intensities are treated as probabilities, and masses as isotopes, so that
+  // for each peak pair (m1, i1) from the first spectrum and (m2, i2) from the second
+  // the peak of the convolution is computed as (m1 + m2, i1 * i2).
   ms::Spectrum convolve(const Spectrum& other, double threshold = 0.0) const;
 
-  double envelope(double resolution, double mz, size_t width = 12) const;
+  bool isConvolutionUnit() const { return masses.size() == 1 && masses[0] == 0.0; }
 
-  ms::Spectrum envelopeCentroids(double resolution, double min_abundance = 1e-4,
+  // Intensity of a gaussian-smoothed spectrum at a given mass.
+  //
+  // WIdth parameter controls how many sigmas on each peak side to treat as non-zero,
+  // the default value is very conservative corresponding to highest precision.
+  double envelope(double resolving_power, double mass, size_t width = 12) const;
+
+  // Normalized intensity-sorted list of centroids
+  ms::Spectrum envelopeCentroids(double resolving_power, double min_abundance = 1e-4,
       size_t points_per_fwhm = 25, size_t centroid_bins = 15) const;
 
   // sorts by decreasing intensity in-place
-  void sortByIntensity();
+  ms::Spectrum& sortByIntensity(bool force = false);
 
   // sorts by increasing mass in-place
-  void sortByMass();
+  ms::Spectrum& sortByMass(bool force = false);
 
-  // sorts by decreasing intensity and scales max intensity to 1
-  void normalize();
-
+  // Number of peaks
   size_t size() const { return masses.size(); }
+
+ private:
+  PeakOrder peak_order_ = PeakOrder::none;
+
+  // sorts by last used order
+  void forcedSort();
 };
 
 template <typename MzIt, typename IntIt>
@@ -127,7 +164,7 @@ Spectrum detectPeaks(const MzIt& mzs_begin, const MzIt& mzs_end,
         mzs_it - window_size / 2 + window_size, int_it - window_size / 2);
 
     result.masses.push_back(m);
-    result.abundances.push_back(intensity);
+    result.intensities.push_back(intensity);
   }
 
   if (result.size() > 0) result.normalize();
@@ -138,8 +175,6 @@ Spectrum detectPeaks(const MzIt& mzs_begin, const MzIt& mzs_end,
 constexpr static double fwhm_to_sigma = 2.3548200450309493;  // 2 \sqrt{2 \log 2}
 
 double sigmaAtResolution(const Spectrum& p, double resolution);
-
-Spectrum sortByMass(const Spectrum& p);
 
 class EnvelopeGenerator {
   Spectrum p_;
@@ -157,7 +192,7 @@ class EnvelopeGenerator {
 
  public:
   EnvelopeGenerator(const Spectrum& p, double resolution, size_t width = 12)
-      : p_(sortByMass(p)),
+      : p_(p.copy().sortByMass()),
         resolution_(resolution),
         width_(width),
         peak_index_(0),

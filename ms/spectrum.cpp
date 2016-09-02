@@ -18,15 +18,15 @@ void Spectrum::addCharge(int charge) {
 }
 
 static bool isNormalized(const Spectrum& p) {
-  if (p.abundances[0] != 1.0) return false;
+  if (p.intensities[0] != 1.0) return false;
   for (size_t i = 1; i < p.size(); i++)
-    if (p.abundances[i - 1] < p.abundances[i]) return false;
+    if (p.intensities[i - 1] < p.intensities[i]) return false;
   return true;
 }
 
 Spectrum Spectrum::convolve(const Spectrum& other, double threshold) const {
-  if (this->isUnit()) return other;
-  if (other.isUnit()) return *this;
+  if (this->isConvolutionUnit()) return other;
+  if (other.isConvolutionUnit()) return *this;
 
   const auto& p1 = *this, p2 = other;
   size_t n1 = p1.size(), n2 = p2.size();
@@ -38,20 +38,19 @@ Spectrum Spectrum::convolve(const Spectrum& other, double threshold) const {
 
   for (size_t i = 0; i < n1; i++)
     for (size_t j = 0; j < n2; j++) {
-      auto abundance = p1.abundances[i] * p2.abundances[j];
+      auto abundance = p1.intensities[i] * p2.intensities[j];
       if (abundance > threshold) {
         result.masses.push_back(p1.masses[i] + p2.masses[j]);
-        result.abundances.push_back(abundance);
+        result.intensities.push_back(abundance);
       } else {
         if (j == 0) break;
         n2 = j;
       }
     }
-  result.normalize();
-  return result;
+  return result.normalize();
 }
 
-static void sortSpectrum(std::vector<double>& masses, std::vector<double>& abundances,
+static void sortSpectrum(std::vector<double>& masses, std::vector<double>& intensities,
     std::function<bool(size_t, size_t)> cmp) {
   auto n = masses.size();
   std::vector<size_t> index(masses.size());
@@ -63,42 +62,43 @@ static void sortSpectrum(std::vector<double>& masses, std::vector<double>& abund
   masses.swap(tmp);
 
   for (size_t i = 0; i < n; i++)
-    tmp[i] = abundances[index[i]];
-  abundances.swap(tmp);
+    tmp[i] = intensities[index[i]];
+  intensities.swap(tmp);
 }
 
-void Spectrum::sortByIntensity() {
-  sortSpectrum(masses, abundances,
-      [&](size_t i, size_t j) { return abundances[i] > abundances[j]; });
+Spectrum& Spectrum::sortByIntensity(bool force) {
+  if (peak_order_ == PeakOrder::intensity && !force) return *this;
+  sortSpectrum(masses, intensities,
+      [&](size_t i, size_t j) { return intensities[i] > intensities[j]; });
+  peak_order_ = PeakOrder::intensity;
+  return *this;
 }
 
-void Spectrum::sortByMass() {
+Spectrum& Spectrum::sortByMass(bool force) {
+  if (peak_order_ == PeakOrder::mass && !force) return *this;
   sortSpectrum(
-      masses, abundances, [&](size_t i, size_t j) { return masses[i] < masses[j]; });
+      masses, intensities, [&](size_t i, size_t j) { return masses[i] < masses[j]; });
+  peak_order_ = PeakOrder::mass;
+  return *this;
 }
 
-void Spectrum::normalize() {
+Spectrum& Spectrum::normalize() {
   sortByIntensity();
-  auto top = abundances[0];
+  auto top = intensities[0];
   if (top > 0)
-    for (auto& item : abundances)
+    for (auto& item : intensities)
       item /= top;
+  return *this;
 }
 
-Spectrum sortByMass(const ms::Spectrum& p) {
-  Spectrum result = p;
-  result.sortByMass();
-  return result;
-}
-
-double Spectrum::envelope(double resolution, double mz, size_t width) const {
+double Spectrum::envelope(double resolution, double mass, size_t width) const {
   double result = 0.0;
 
   double sigma = ms::sigmaAtResolution(*this, resolution);
 
   for (size_t k = 0; k < size(); ++k) {
-    if (std::fabs(masses[k] - mz) > width * sigma) continue;
-    result += abundances[k] * std::exp(-0.5 * std::pow((masses[k] - mz) / sigma, 2));
+    if (std::fabs(masses[k] - mass) > width * sigma) continue;
+    result += intensities[k] * std::exp(-0.5 * std::pow((masses[k] - mass) / sigma, 2));
   }
   return result;
 }
@@ -111,7 +111,7 @@ double EnvelopeGenerator::envelope(double mz) {
     --k;
   while (k < n && p_.masses[k] - mz <= width_ * sigma_) {
     double sd_dist = (p_.masses[k] - mz) / sigma_;
-    result += p_.abundances[k] * std::exp(-0.5 * std::pow(sd_dist, 2));
+    result += p_.intensities[k] * std::exp(-0.5 * std::pow(sd_dist, 2));
     ++k;
   }
   return result;
@@ -145,7 +145,7 @@ double sigmaAtResolution(const Spectrum& s, double resolution) {
 
 Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
     size_t points_per_fwhm, size_t centroid_bins) const {
-  if (this->isUnit() || this->masses.size() == 0) return *this;
+  if (this->masses.size() <= 1) return *this;
   if (points_per_fwhm < 5)
     throw std::logic_error("points_per_fwhm must be at least 5 for meaningful results");
   if (centroid_bins < 3) throw std::logic_error("centroid_bins must be at least 3");
@@ -201,14 +201,12 @@ Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
         centroid(mz_window.begin(), mz_window.end(), int_window.begin());
     rotateWindows(shift);
     result.masses.push_back(m);
-    result.abundances.push_back(intensity);
+    result.intensities.push_back(intensity);
   }
 
   if (result.size() == 0)
     throw std::logic_error("the result contains no peaks, make min_abundance lower!");
 
-  result.normalize();
-  result.removeAbundancesBelow(min_abundance);
-  return result;
+  return result.sortByIntensity().normalize().removeIntensitiesBelow(min_abundance);
 }
 }

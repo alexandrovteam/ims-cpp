@@ -19,9 +19,9 @@ IMS_EXTERN void spectrum_masses(Spectrum* s, double* out) {
     out[i] = s->masses.at(i);
 }
 
-IMS_EXTERN void spectrum_abundances(Spectrum* s, double* out) {
+IMS_EXTERN void spectrum_intensities(Spectrum* s, double* out) {
   for (size_t i = 0; i < s->size(); i++)
-    out[i] = s->abundances.at(i);
+    out[i] = s->intensities.at(i);
 }
 
 IMS_EXTERN void spectrum_add_charge(Spectrum* s, int charge) {
@@ -37,10 +37,19 @@ IMS_EXTERN void spectrum_add_inplace(Spectrum* s1, Spectrum* s2) {
 }
 
 IMS_EXTERN void spectrum_trim(Spectrum* s, unsigned n_peaks) {
-  if (s->size() > n_peaks) {
-    s->masses.resize(n_peaks);
-    s->abundances.resize(n_peaks);
-  }
+  s->trimmed(n_peaks);
+}
+
+IMS_EXTERN void spectrum_trim_intensity(Spectrum* s, double min_intensity) {
+  s->removeIntensitiesBelow(min_intensity);
+}
+
+IMS_EXTERN void spectrum_sort_by_mass(Spectrum* s) {
+  s->sortByMass();
+}
+
+IMS_EXTERN void spectrum_sort_by_intensity(Spectrum* s) {
+  s->sortByIntensity();
 }
 
 IMS_EXTERN void spectrum_free(Spectrum* s) {
@@ -50,7 +59,7 @@ IMS_EXTERN void spectrum_free(Spectrum* s) {
 IMS_EXTERN Spectrum* spectrum_new(int n, double* masses, double* abundances) {
   auto s = new (std::nothrow) Spectrum();
   s->masses.assign(masses, masses + n);
-  s->abundances.assign(abundances, abundances + n);
+  s->intensities.assign(abundances, abundances + n);
   return s;
 }
 

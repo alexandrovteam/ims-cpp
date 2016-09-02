@@ -16,7 +16,7 @@ extern const std::map<std::string, ms::Element> periodic_table;
 struct Element {
   std::string abbr;
   unsigned number;
-  ms::Spectrum isotope_pattern;
+  ms::Spectrum isotope_pattern;  // intensity-sorted
 
   static bool isKnown(const std::string& abbr) {
     return periodic_table.find(abbr) != periodic_table.end();
