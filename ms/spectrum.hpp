@@ -78,6 +78,7 @@ struct Spectrum {
         ms.push_back(masses[i]), is.push_back(intensities[i]);
     masses.swap(ms);
     intensities.swap(is);
+    return *this;
   }
 
   Spectrum copy() const {
