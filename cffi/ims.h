@@ -10,14 +10,19 @@ double imzb_reader_max_mz(ImzbReader);
 int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 
+typedef void* InstrumentProfile;
+InstrumentProfile instrument_profile_new(const char* type, double resolving_power, double at_mz);
+void instrument_profile_free(InstrumentProfile);
+double instrument_resolving_power_at(InstrumentProfile, double mz);
+
 typedef void* Spectrum;
 Spectrum spectrum_new(int n, double* masses, double* intensities);
 Spectrum spectrum_new_from_sf(char* formula, double thr, double fft_thr);
-Spectrum spectrum_new_from_raw(int n, double* masses, double* intensities, int window_size);
+Spectrum spectrum_new_from_raw(int n, double* masses, float* intensities, int window_size);
 Spectrum spectrum_copy(Spectrum);
-float spectrum_envelope(Spectrum, double resolution, double mz);
-int spectrum_envelope_plot(Spectrum, double resolution, double* mzs, int n, float* out);
-Spectrum spectrum_envelope_centroids(Spectrum, double resolution, double min_abundance,
+float spectrum_envelope(Spectrum, InstrumentProfile, double mz);
+int spectrum_envelope_plot(Spectrum, InstrumentProfile, double* mzs, int n, float* out);
+Spectrum spectrum_envelope_centroids(Spectrum, InstrumentProfile, double min_abundance,
                                      int points_per_fwhm);
 int spectrum_size(Spectrum);
 void spectrum_masses(Spectrum, double*);

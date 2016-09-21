@@ -47,7 +47,7 @@ void saveIsotopeDB(utils::IsotopePatternDB& db, std::string output_fn) {
 }
 
 int isocalc_main(int argc, char** argv) {
-  double resolution;
+  double resolving_power;
   unsigned max_peaks;
 
   std::string input_file, output_file;
@@ -58,8 +58,8 @@ int isocalc_main(int argc, char** argv) {
       " <input.txt> "
       "<output.db>\n\t\t\twhere input "
       "contains one sum formula per line.");
-  options.add_options()("resolution", "Resolving power at m/z=200",
-      cxxopts::value<double>(resolution)->default_value("140000.0"))("adducts",
+  options.add_options()("resolving_power", "Resolving power at m/z=200",
+      cxxopts::value<double>(resolving_power)->default_value("140000.0"))("adducts",
       "Comma-separated list of adducts",
       cxxopts::value<std::string>(adducts_str)->default_value("+H,+K,+Na"))("max-peaks",
       "Maximum number of peaks to store",
@@ -67,7 +67,7 @@ int isocalc_main(int argc, char** argv) {
       "Adducts for generating a decoy database (stored in a "
       "separate file named <output.db.decoy>)",
       cxxopts::value<std::string>(decoy_adducts_str)->default_value(""))("instrument",
-      "Instrument type (orbitrap|fticr)",
+      "Instrument type (orbitrap|fticr|tof)",
       cxxopts::value<std::string>(instrument_type)->default_value("orbitrap"))(
       "help", "Print help");
 
@@ -83,12 +83,14 @@ int isocalc_main(int argc, char** argv) {
     return 0;
   }
 
-  using InstrumentProfilePtr = std::unique_ptr<utils::InstrumentProfile>;
+  using InstrumentProfilePtr = std::unique_ptr<ms::InstrumentProfile>;
   InstrumentProfilePtr instrument;
   if (instrument_type == "orbitrap")
-    instrument = InstrumentProfilePtr(new utils::OrbitrapProfile{resolution});
+    instrument = InstrumentProfilePtr(new ms::OrbitrapProfile{resolving_power, 200});
   else if (instrument_type == "fticr")
-    instrument = InstrumentProfilePtr(new utils::FTICRProfile(resolution));
+    instrument = InstrumentProfilePtr(new ms::FTICRProfile{resolving_power, 200});
+  else if (instrument_type == "tof")
+    instrument = InstrumentProfilePtr(new ms::TOFProfile(resolving_power));
   else {
     std::cerr << "unknown instrument type: " << instrument_type << std::endl;
     return -1;
@@ -97,7 +99,7 @@ int isocalc_main(int argc, char** argv) {
   auto target_adducts = parseAdducts(adducts_str);
   auto decoy_adducts = parseAdducts(decoy_adducts_str);
 
-  std::cout << "Resolution @ m/z=200: " << resolution << std::endl;
+  std::cout << "Resolving power @ m/z=200: " << resolving_power << std::endl;
   std::cout << "Generating isotope pattern database for adducts ";
   printAdducts(target_adducts);
   std::cout << "..." << std::endl;
@@ -117,7 +119,7 @@ int isocalc_main(int argc, char** argv) {
   utils::IsotopePatternDB db{sum_formulas, target_adducts};
   std::ios_base::sync_with_stdio(true);
   db.useProgressBar(true);
-  db.computeIsotopePatterns(*instrument, max_peaks);
+  db.computeIsotopePatterns(instrument.get(), max_peaks);
   saveIsotopeDB(db, output_file);
 
   if (!decoy_adducts.empty()) {
@@ -127,7 +129,7 @@ int isocalc_main(int argc, char** argv) {
     utils::IsotopePatternDB decoy_db{sum_formulas, decoy_adducts};
     std::ios_base::sync_with_stdio(true);
     decoy_db.useProgressBar(true);
-    decoy_db.computeIsotopePatterns(*instrument, max_peaks);
+    decoy_db.computeIsotopePatterns(instrument.get(), max_peaks);
     saveIsotopeDB(decoy_db, output_file + ".decoy");
   }
 

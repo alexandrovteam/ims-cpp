@@ -1,11 +1,14 @@
 #pragma once
 
+#include "ms/instrument.hpp"
+
 #include <vector>
 #include <cstdlib>
 #include <initializer_list>
 #include <stdexcept>
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <tuple>
 #include <cassert>
 #include <cmath>
@@ -102,11 +105,13 @@ struct Spectrum {
   //
   // WIdth parameter controls how many sigmas on each peak side to treat as non-zero,
   // the default value is very conservative corresponding to highest precision.
-  double envelope(double resolving_power, double mass, size_t width = 12) const;
+  double envelope(
+      const InstrumentProfile* instrument, double mass, size_t width = 12) const;
 
   // Normalized intensity-sorted list of centroids
-  ms::Spectrum envelopeCentroids(double resolving_power, double min_abundance = 1e-4,
-      size_t points_per_fwhm = 25, size_t centroid_bins = 15) const;
+  ms::Spectrum envelopeCentroids(const InstrumentProfile* instrument,
+      double min_abundance = 1e-4, size_t points_per_fwhm = 25,
+      size_t centroid_bins = 15) const;
 
   // sorts by decreasing intensity in-place
   ms::Spectrum& sortByIntensity(bool force = false);
@@ -175,33 +180,27 @@ Spectrum detectPeaks(const MzIt& mzs_begin, const MzIt& mzs_end,
 
 constexpr static double fwhm_to_sigma = 2.3548200450309493;  // 2 \sqrt{2 \log 2}
 
-double sigmaAtResolution(const Spectrum& p, double resolution);
-
 class EnvelopeGenerator {
   Spectrum p_;
-  double resolution_;
+  const InstrumentProfile* instrument_;
   size_t width_;
 
   size_t peak_index_;  // index of the currently processed peak
-  bool empty_space_;   // true if there are no peaks within distance (width *
-                       // sigma)
+  double sigma_;       // value of sigma for the currently processed peak
+
+  // true if there are no peaks within distance (width * sigma)
+  bool empty_space_;
 
   double last_mz_;
-  double fwhm_, sigma_;
 
   double envelope(double mz);
 
  public:
-  EnvelopeGenerator(const Spectrum& p, double resolution, size_t width = 12)
-      : p_(p.copy().sortByMass()),
-        resolution_(resolution),
-        width_(width),
-        peak_index_(0),
-        empty_space_(false),
-        last_mz_(-std::numeric_limits<double>::min()) {
-    assert(p.size() > 0 && p.masses[0] > 0);
-  }
+  EnvelopeGenerator(
+      const Spectrum& p, const InstrumentProfile* instrument, size_t width = 12);
 
   double operator()(double mz);
+
+  double currentSigma() const;
 };
 }

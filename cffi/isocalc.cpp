@@ -10,6 +10,30 @@ using namespace cffi;
 
 extern "C" {
 
+IMS_EXTERN InstrumentProfile* instrument_profile_new(
+    const char* type, double resolving_power, double at_mz) {
+  std::string stype{type};
+  if (stype == "orbitrap")
+    return new (std::nothrow) OrbitrapProfile{resolving_power, at_mz};
+  else if (stype == "fticr")
+    return new (std::nothrow) FTICRProfile(resolving_power, at_mz);
+  else if (stype == "tof")
+    return new (std::nothrow) TOFProfile(resolving_power);
+  else {
+    setErrorMessage("Unknown instrument type: '" + stype + "'");
+    return nullptr;
+  }
+}
+
+IMS_EXTERN void instrument_profile_free(InstrumentProfile* instrument) {
+  delete instrument;
+}
+
+IMS_EXTERN double instrument_resolving_power_at(
+    InstrumentProfile* instrument, double mz) {
+  return instrument->resolvingPowerAt(mz);
+}
+
 IMS_EXTERN int spectrum_size(Spectrum* s) {
   return s->size();
 }
@@ -81,14 +105,14 @@ IMS_EXTERN Spectrum* spectrum_copy(Spectrum* s) {
   return new (std::nothrow) Spectrum(*s);
 }
 
-IMS_EXTERN float spectrum_envelope(Spectrum* s, double resolution, double mz) {
-  return s->envelope(resolution, mz);
+IMS_EXTERN float spectrum_envelope(Spectrum* s, InstrumentProfile* instr, double mz) {
+  return s->envelope(instr, mz);
 }
 
 IMS_EXTERN int spectrum_envelope_plot(
-    Spectrum* s, double resolution, double* mzs, int n, float* out) {
+    Spectrum* s, InstrumentProfile* instr, double* mzs, int n, float* out) {
   return wrap_catch<int>(-1, [&]() {
-    ms::EnvelopeGenerator envelope(*s, resolution);
+    ms::EnvelopeGenerator envelope(*s, instr);
     for (int i = 0; i < n; ++i)
       out[i] = envelope(mzs[i]);
     return 0;
@@ -100,9 +124,9 @@ IMS_EXTERN void spectrum_normalize(Spectrum* s) {
 }
 
 IMS_EXTERN Spectrum* spectrum_envelope_centroids(
-    Spectrum* s, double resolution, double min_abundance, int points_per_fwhm) {
+    Spectrum* s, InstrumentProfile* instr, double min_abundance, int points_per_fwhm) {
   return wrap_catch<Spectrum*>(nullptr, [&]() {
-    return heapify(s->envelopeCentroids(resolution, min_abundance, points_per_fwhm));
+    return heapify(s->envelopeCentroids(instr, min_abundance, points_per_fwhm));
   });
 }
 }

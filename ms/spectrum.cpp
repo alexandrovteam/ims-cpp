@@ -91,16 +91,44 @@ Spectrum& Spectrum::normalize() {
   return *this;
 }
 
-double Spectrum::envelope(double resolution, double mass, size_t width) const {
+static double sigmaAtResolvingPower(double mass, double resolving_power) {
+  if (resolving_power <= 0) return NAN;
+  auto fwhm = mass / resolving_power;
+  return fwhm / fwhm_to_sigma;
+}
+
+static double calculateSigmaAt(double mass, const InstrumentProfile* instrument) {
+  double resolving_power = instrument->resolvingPowerAt(mass);
+  return sigmaAtResolvingPower(mass, resolving_power);
+}
+
+double Spectrum::envelope(
+    const InstrumentProfile* instrument, double mass, size_t width) const {
   double result = 0.0;
 
-  double sigma = ms::sigmaAtResolution(*this, resolution);
+  double sigma = calculateSigmaAt(mass, instrument);
 
   for (size_t k = 0; k < size(); ++k) {
     if (std::fabs(masses[k] - mass) > width * sigma) continue;
     result += intensities[k] * std::exp(-0.5 * std::pow((masses[k] - mass) / sigma, 2));
   }
   return result;
+}
+
+EnvelopeGenerator::EnvelopeGenerator(
+    const Spectrum& p, const InstrumentProfile* instrument, size_t width)
+    : p_(p.copy().sortByMass()),
+      instrument_(instrument),
+      width_(width),
+      peak_index_(0),
+      empty_space_(false),
+      last_mz_(-std::numeric_limits<double>::min()) {
+  assert(p.size() > 0 && p.masses[0] > 0);
+  sigma_ = calculateSigmaAt(p_.masses[0], instrument_);
+}
+
+double EnvelopeGenerator::currentSigma() const {
+  return sigma_;
 }
 
 double EnvelopeGenerator::envelope(double mz) {
@@ -118,9 +146,6 @@ double EnvelopeGenerator::envelope(double mz) {
 }
 
 double EnvelopeGenerator::operator()(double mz) {
-  fwhm_ = mz / resolution_;
-  sigma_ = fwhm_ / fwhm_to_sigma;
-
   if (last_mz_ > mz)
     throw std::runtime_error("input to EnvelopeGenerator must be sorted");
 
@@ -131,33 +156,31 @@ double EnvelopeGenerator::operator()(double mz) {
       mz >= p_.masses[peak_index_ + 1] - width_ * sigma_) {
     empty_space_ = false;
     ++peak_index_;  // reached next peak
+
+    sigma_ = calculateSigmaAt(p_.masses[peak_index_], instrument_);
   }
 
   last_mz_ = mz;
   return envelope(mz);
 }
 
-double sigmaAtResolution(const Spectrum& s, double resolution) {
-  if (s.size() == 0 || resolution <= 0) return NAN;
-  auto fwhm = s.masses[0] / resolution;
-  return fwhm / fwhm_to_sigma;
-}
-
-Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
-    size_t points_per_fwhm, size_t centroid_bins) const {
+Spectrum Spectrum::envelopeCentroids(const InstrumentProfile* instrument,
+    double min_abundance, size_t points_per_fwhm, size_t centroid_bins) const {
   if (this->masses.size() <= 1) return *this;
   if (points_per_fwhm < 5)
     throw std::logic_error("points_per_fwhm must be at least 5 for meaningful results");
   if (centroid_bins < 3) throw std::logic_error("centroid_bins must be at least 3");
 
   const size_t width = 12;
-  double sigma = ms::sigmaAtResolution(*this, resolution);
-
-  double step = (sigma * fwhm_to_sigma) / points_per_fwhm;
   double min_mz = *std::min_element(this->masses.begin(), this->masses.end());
   double max_mz = *std::max_element(this->masses.begin(), this->masses.end());
 
-  EnvelopeGenerator envelope(*this, resolution, width);
+  EnvelopeGenerator envelope(*this, instrument, width);
+
+  double sigma = envelope.currentSigma();
+  double step = (sigma * fwhm_to_sigma) / points_per_fwhm;
+
+  int n_steps = 0;
 
   std::vector<double> mz_window(centroid_bins), int_window(centroid_bins);
   size_t center = centroid_bins / 2, last_idx = centroid_bins - 1;
@@ -165,6 +188,7 @@ Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
   for (size_t j = 0; j < centroid_bins; j++) {
     mz_window[j] = mz_window[center] + (int(j) - int(center)) * step;
     int_window[j] = envelope(mz_window[j]);
+    ++n_steps;
   }
 
   auto prev = [&](size_t idx) { return idx > 0 ? idx - 1 : centroid_bins - 1; };
@@ -185,6 +209,13 @@ Spectrum Spectrum::envelopeCentroids(double resolution, double min_abundance,
     last_idx = next(last_idx);
     mz_window[last_idx] = next_mz;
     int_window[last_idx] = envelope(next_mz);
+
+    sigma = envelope.currentSigma();
+    step = (sigma * fwhm_to_sigma) / points_per_fwhm;
+    ++n_steps;
+
+    if (n_steps > 100000000)
+      throw std::runtime_error("error in envelopeCentroids calculation");
 
     // check if it's a local maximum
     if (!(int_window[prev(center)] < int_window[center] &&

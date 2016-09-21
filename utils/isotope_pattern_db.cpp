@@ -14,7 +14,7 @@ extern "C" {
 namespace utils {
 
 void IsotopePatternDB::computeIsotopePatterns(
-    const utils::InstrumentProfile& instrument, size_t max_peaks) {
+    const ms::InstrumentProfile* instrument, size_t max_peaks) {
   std::mutex map_mutex;
 
   progressbar* bar = nullptr;
@@ -31,13 +31,11 @@ void IsotopePatternDB::computeIsotopePatterns(
     if (adduct[0] != '-' && adduct[0] != '+') adduct = "+" + adduct;
     auto full_formula = f + adduct;
     try {
-      auto res = instrument.resolutionAt(ms::monoisotopicMass(full_formula));
-
       auto t1 = clock.now();
       auto pattern = ms::computeIsotopePattern(full_formula);
 
       auto t2 = clock.now();
-      pattern = pattern.envelopeCentroids(res).charged(charge).trimmed(max_peaks);
+      pattern = pattern.envelopeCentroids(instrument).charged(charge).trimmed(max_peaks);
 
       auto t3 = clock.now();
       auto key = std::make_pair(f, adduct);

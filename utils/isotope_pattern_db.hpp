@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ms/spectrum.hpp"
+#include "ms/instrument.hpp"
 
 #include <map>
 #include <string>
@@ -11,34 +12,6 @@
 #include <cmath>
 
 namespace utils {
-
-class InstrumentProfile {
- public:
-  virtual double resolutionAt(double mz) const = 0;
-  virtual ~InstrumentProfile() {}
-};
-
-class OrbitrapProfile : public InstrumentProfile {
-  double resolution_200_;
-
- public:
-  OrbitrapProfile(double resolution_at_200) : resolution_200_(resolution_at_200) {}
-
-  double resolutionAt(double mz) const { return resolution_200_ * sqrt(200.0 / mz); }
-
-  OrbitrapProfile() {}
-};
-
-class FTICRProfile : public InstrumentProfile {
-  double resolution_200_;
-
- public:
-  FTICRProfile(double resolution_at_200) : resolution_200_(resolution_at_200) {}
-
-  double resolutionAt(double mz) const { return resolution_200_ * 200.0 / mz; }
-
-  FTICRProfile() {}
-};
 
 class IsotopePatternDB {
   typedef std::pair<std::string, std::string> SFAdductPair;
@@ -73,7 +46,7 @@ class IsotopePatternDB {
   IsotopePatternDB(const std::string& dump_filename) { load(dump_filename); }
 
   void computeIsotopePatterns(
-      const utils::InstrumentProfile& instrument, size_t max_peaks = 5);
+      const ms::InstrumentProfile* instrument, size_t max_peaks = 5);
 
   ms::Spectrum operator()(const std::string& formula, const std::string& adduct) const {
     auto& entry = patterns_.at(std::make_pair(formula, adduct));
