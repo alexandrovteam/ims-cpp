@@ -11,7 +11,7 @@
 #include <memory>
 
 namespace ms {
-typedef std::map<std::string, uint16_t> ElementCounter;
+typedef std::map<std::string, int16_t> ElementCounter;
 
 double monoisotopicMass(const ElementCounter& counter);
 double monoisotopicMass(const std::string& formula);

@@ -238,7 +238,7 @@ class SumFormulaParser {
     auto pos = n;
     uint16_t result = 0;
     while (!eof() && std::isdigit(peek())) {
-      if (result >= 6553) throw ParseError("the number is too big", pos);
+      if (result >= 3000) throw ParseError("the number is too big", pos);
       result = result * 10 + (nextChar() - '0');
     }
     return result;
@@ -301,8 +301,7 @@ class SumFormulaParser {
       } else { break; }
     }
 
-    // FIXME: support multiple adducts
-    if (!eof()) {
+    while (!eof()) {
       ElementCounter adduct;
       char sign = nextChar();
       int mult;
@@ -313,14 +312,14 @@ class SumFormulaParser {
       else
         throw ParseError("expected +/-", n - 1);
       parseMolecularComplex(adduct);
-      for (auto& item : adduct) {
-        auto total = int(counter[item.first]) + mult * int(item.second);
-        if (total < 0) throw NegativeTotalError(item.first, total);
-        if (total == 0)
-          counter.erase(item.first);
-        else
-          counter[item.first] = total;
-      }
+      for (auto& item : adduct)
+        counter[item.first] += mult * int(item.second);
+    }
+
+    for (auto it = counter.begin(); it != counter.end(); ++it) {
+      if (it->second < 0) throw NegativeTotalError(it->first, it->second);
+      if (it->second == 0)
+        it = counter.erase(it);
     }
   }
 };
