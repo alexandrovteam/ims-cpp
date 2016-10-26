@@ -24,7 +24,7 @@ RUN curl -O http://tukaani.org/xz/xz-5.2.2.tar.gz &&\
 RUN wget -q http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh &&\
     bash Miniconda-latest-Linux-x86_64.sh -b -p /miniconda &&\
     rm Miniconda-latest-Linux-x86_64.sh
-ENV PATH /miniconda/bin:$PATH
+ENV PATH /miniconda/bin:/opt/rh/devtoolset-3/root/usr/bin:$PATH
 
 RUN conda create -y -n py3 python=3; source activate py3; pip install auditwheel pypatchelf
 RUN conda create -y -n py2 python=2 cffi
