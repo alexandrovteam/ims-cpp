@@ -99,10 +99,8 @@ double measureOfChaos(const ims::ImageF& image, size_t n_levels) {
   const auto& intensities = image.intensities();
   auto max = *std::max_element(std::begin(intensities), std::end(intensities));
 
-  // FIXME: n_levels - 1 is only for compatibility with pyIMS code,
-  //        it would be more sensible to divide by n_levels
   for (size_t i = 0; i < n_levels; i++)
-    levels[i] = float(max * i) / (n_levels - 1);
+    levels[i] = float(max * i) / n_levels;
   levels[n_levels] = std::numeric_limits<float>::max();
 
   // set bits indicating if i-th pixel is in j-th level set
