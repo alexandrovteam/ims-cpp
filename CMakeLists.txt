@@ -122,6 +122,7 @@ add_definitions(-DIN_LIBXML)
 set(SRC_COMMON
   imzb/reader.cpp
   imzb/writer.cpp
+  imzb/dbscan.cpp
   ims/image_measures.cpp
   ms/isocalc.cpp
   ms/spectrum.cpp
@@ -178,7 +179,7 @@ else()
   target_link_libraries(ms_cffi -Wl,-Bsymbolic-functions -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm)
 endif()
 
-add_library(ims_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp cffi/image_measures.cpp ims/image_measures.cpp)
+add_library(ims_cffi SHARED cffi/imzb.cpp cffi/common.cpp imzb/reader.cpp cffi/image_measures.cpp ims/image_measures.cpp imzb/dbscan.cpp)
 target_compile_options(ims_cffi PUBLIC -std=c++11)
 # FIXME: WIN32
 if ( APPLE )

@@ -1,5 +1,6 @@
 #include "cffi/common.hpp"
 #include "imzb/reader.hpp"
+#include "imzb/dbscan.hpp"
 
 using namespace cffi;
 
@@ -44,4 +45,26 @@ IMS_EXTERN double imzb_reader_min_mz(imzb::ImzbReader* reader) {
 IMS_EXTERN double imzb_reader_max_mz(imzb::ImzbReader* reader) {
   return reader->maxMz();
 }
+
+IMS_EXTERN int imzb_reader_slice(imzb::ImzbReader* reader,
+                                 double min_mz, double max_mz, ims::Peak** out) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    auto slice = reader->slice(min_mz, max_mz);
+    *out = new ims::Peak[slice.size()];
+    std::copy(slice.begin(), slice.end(), *out);
+    return slice.size();
+  });
+}
+
+IMS_EXTERN int imzb_reader_dbscan(imzb::ImzbReader* reader, int minPts, double eps,
+                                  imzb::MzBin** out) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    auto result = imzb::dbscan(reader, uint32_t(minPts), eps);
+    const auto& bins = result.bins();
+    *out = new imzb::MzBin[bins.size()];
+    std::copy(bins.begin(), bins.end(), *out);
+    return bins.size();
+  });
+}
+
 }

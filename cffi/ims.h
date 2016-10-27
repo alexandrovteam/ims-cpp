@@ -1,5 +1,25 @@
 char* ims_strerror();
 
+typedef struct {
+  uint32_t x;
+  uint32_t y;
+  uint32_t z;
+} Position;
+
+typedef struct {
+  Position coords;
+  double mz;
+  float intensity;
+} Peak;
+
+typedef struct {
+  double left, right;
+  uint64_t count;
+  uint64_t core_count;
+  double sum, sumsq;
+  double intensity;
+} MzBin;
+
 typedef void* ImzbReader;
 ImzbReader imzb_reader_new(char*);
 void imzb_reader_free(ImzbReader);
@@ -9,6 +29,8 @@ double imzb_reader_min_mz(ImzbReader);
 double imzb_reader_max_mz(ImzbReader);
 int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
+int imzb_reader_slice(ImzbReader, double min_mz, double max_mz, Peak** out);
+int imzb_reader_dbscan(ImzbReader, int minPts, double eps, MzBin** out);
 
 typedef void* InstrumentProfile;
 InstrumentProfile instrument_profile_new(const char* type, double resolving_power, double at_mz);
@@ -46,3 +68,5 @@ double iso_img_correlation_d(double** images, int n, int width, int height, doub
 
 double pattern_match_f(float** images, int n, int width, int height, double* isotope_abundances);
 double pattern_match_d(double** images, int n, int width, int height, double* isotope_abundances);
+
+void free(void*);
