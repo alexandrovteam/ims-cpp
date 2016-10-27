@@ -67,4 +67,15 @@ IMS_EXTERN int imzb_reader_dbscan(imzb::ImzbReader* reader, int minPts, double e
   });
 }
 
+IMS_EXTERN int imzb_reader_dbscan2(imzb::ImzbReader* reader, int minPts, double eps,
+                                   double min_mz, double max_mz, imzb::MzBin** out) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    auto result = imzb::dbscan(reader, uint32_t(minPts), eps, min_mz, max_mz);
+    const auto& bins = result.bins();
+    *out = new imzb::MzBin[bins.size()];
+    std::copy(bins.begin(), bins.end(), *out);
+    return bins.size();
+  });
+}
+
 }

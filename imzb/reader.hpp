@@ -35,6 +35,7 @@ class ImzbReader {
 
   bool readNext(ims::Peak& peak);
 
+  void seek(double mz);
   void reset();
 
   std::vector<ims::Peak> slice(double min_mz, double max_mz) const;

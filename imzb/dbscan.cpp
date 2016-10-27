@@ -81,9 +81,29 @@ DBScan dbscan(ImzbReader* reader, uint32_t minPts, double eps) {
   DBScan dbscan(minPts, eps);
 
   ims::Peak peak;
+  reader->reset();
   while (reader->readNext(peak))
     dbscan.put(peak);
+  reader->reset();
 
   return dbscan;
 }
+
+DBScan dbscan(ImzbReader* reader, uint32_t minPts, double eps,
+              double min_mz, double max_mz)
+{
+  DBScan dbscan(minPts, eps);
+
+  ims::Peak peak;
+  reader->seek(min_mz);
+  while (reader->readNext(peak)) {
+    if (peak.mz >= max_mz)
+      break;
+    dbscan.put(peak);
+  }
+  reader->reset();
+
+  return dbscan;
+}
+
 }

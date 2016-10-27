@@ -31,6 +31,7 @@ int imzb_reader_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_slice(ImzbReader, double min_mz, double max_mz, Peak** out);
 int imzb_reader_dbscan(ImzbReader, int minPts, double eps, MzBin** out);
+int imzb_reader_dbscan2(ImzbReader, int minPts, double eps, double min_mz, double max_mz, MzBin** out);
 
 typedef void* InstrumentProfile;
 InstrumentProfile instrument_profile_new(const char* type, double resolving_power, double at_mz);

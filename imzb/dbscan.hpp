@@ -39,4 +39,7 @@ class DBScan {
 };
 
 DBScan dbscan(ImzbReader* reader, uint32_t minPts, double eps);
+DBScan dbscan(ImzbReader* reader, uint32_t minPts, double eps,
+              double min_mz, double max_mz);
+
 }

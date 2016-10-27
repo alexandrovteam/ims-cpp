@@ -78,6 +78,17 @@ void imzb::ImzbReader::reset() {
   empty_ = false;
 }
 
+void imzb::ImzbReader::seek(double mz) {
+  block_idx_ = index_->startBlock(mz);
+  if (!readNextBlock()) {
+    empty_ = true;
+    return;
+  }
+  for (; pos_ < n_peaks_; ++pos_)
+    if (peaks_[pos_].mz >= mz)
+      break;
+}
+
 std::vector<ims::Peak> imzb::ImzbReader::slice(double min_mz, double max_mz) const {
   assert(min_mz < max_mz);
   std::vector<char> inbuf;
