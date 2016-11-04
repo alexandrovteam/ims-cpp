@@ -16,8 +16,9 @@ typedef struct {
   double left, right;
   uint64_t count;
   uint64_t core_count;
-  double sum, sumsq;
   double intensity;
+  double median_mz;
+  double mean, sd;
 } MzBin;
 
 typedef void* ImzbReader;
@@ -32,6 +33,8 @@ int imzb_reader_centroided_image(ImzbReader, double mz, double ppm, float* out);
 int imzb_reader_slice(ImzbReader, double min_mz, double max_mz, Peak** out);
 int imzb_reader_dbscan(ImzbReader, int minPts, double eps, MzBin** out);
 int imzb_reader_dbscan2(ImzbReader, int minPts, double eps, double min_mz, double max_mz, MzBin** out);
+int imzb_reader_dbscan3(ImzbReader, int minPts, double (*eps)(double), MzBin** out);
+int imzb_reader_dbscan4(ImzbReader, int minPts, double (*eps)(double), double min_mz, double max_mz, MzBin** out);
 
 typedef void* InstrumentProfile;
 InstrumentProfile instrument_profile_new(const char* type, double resolving_power, double at_mz);

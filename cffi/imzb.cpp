@@ -56,25 +56,37 @@ IMS_EXTERN int imzb_reader_slice(imzb::ImzbReader* reader,
   });
 }
 
+static int copyBins(const imzb::DBScan& dbscan, imzb::MzBin** dst) {
+  const auto& src = dbscan.bins();
+  *dst = new imzb::MzBin[src.size()];
+  std::copy(src.begin(), src.end(), *dst);
+  return src.size();
+}
+
 IMS_EXTERN int imzb_reader_dbscan(imzb::ImzbReader* reader, int minPts, double eps,
                                   imzb::MzBin** out) {
   return wrap_catch<int>(-1, [&]() -> int {
-    auto result = imzb::dbscan(reader, uint32_t(minPts), eps);
-    const auto& bins = result.bins();
-    *out = new imzb::MzBin[bins.size()];
-    std::copy(bins.begin(), bins.end(), *out);
-    return bins.size();
+    return copyBins(imzb::dbscan(reader, uint32_t(minPts), eps), out);
   });
 }
 
 IMS_EXTERN int imzb_reader_dbscan2(imzb::ImzbReader* reader, int minPts, double eps,
                                    double min_mz, double max_mz, imzb::MzBin** out) {
   return wrap_catch<int>(-1, [&]() -> int {
-    auto result = imzb::dbscan(reader, uint32_t(minPts), eps, min_mz, max_mz);
-    const auto& bins = result.bins();
-    *out = new imzb::MzBin[bins.size()];
-    std::copy(bins.begin(), bins.end(), *out);
-    return bins.size();
+    return copyBins(imzb::dbscan(reader, uint32_t(minPts), eps, min_mz, max_mz), out);
+  });
+}
+IMS_EXTERN int imzb_reader_dbscan3(imzb::ImzbReader* reader, int minPts, double (*eps)(double),
+                                   imzb::MzBin** out) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    return copyBins(imzb::dbscan(reader, uint32_t(minPts), eps), out);
+  });
+}
+
+IMS_EXTERN int imzb_reader_dbscan4(imzb::ImzbReader* reader, int minPts, double (*eps)(double),
+                                   double min_mz, double max_mz, imzb::MzBin** out) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    return copyBins(imzb::dbscan(reader, uint32_t(minPts), eps, min_mz, max_mz), out);
   });
 }
 
