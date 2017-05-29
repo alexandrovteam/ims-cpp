@@ -283,6 +283,7 @@ class SumFormulaParser {
   void parseMolecularComplex(ElementCounter& counter) {
     ElementCounter tmp;
     auto repeats = parseOptionalNumber();
+    parseFragment(tmp);
     while (!eof()) {
       if (peek() == '.' || peek() == '-' || peek() == '+') break;
       parseFragment(tmp);
@@ -316,9 +317,11 @@ class SumFormulaParser {
         counter[item.first] += mult * int(item.second);
     }
 
-    for (auto it = counter.begin(); it != counter.end(); ++it) {
+    for (auto it = counter.begin(); it != counter.end(); ) {
       if (it->second < 0) throw NegativeTotalError(it->first, it->second);
-      if (it->second == 0)
+      if (it->second != 0)
+        ++it;
+      else
         it = counter.erase(it);
     }
   }
