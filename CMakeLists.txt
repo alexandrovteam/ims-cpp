@@ -77,22 +77,6 @@ add_library(progressbar STATIC IMPORTED)
 set_property(TARGET progressbar PROPERTY IMPORTED_LOCATION  ${PROGRESSBAR_DIR}/lib/libprogressbar.a)
 add_dependencies(progressbar progressbar_proj)
 
-add_definitions(-Dkiss_fft_scalar=double)
-set(KISSFFT_DIR ${PROJECT_SOURCE_DIR}/third-party/kissfft)
-include_directories(${KISSFFT_DIR})
-externalproject_add(kissfft_proj
-  GIT_REPOSITORY https://github.com/itdaniher/kissfft
-  GIT_TAG 071e47d8ca9000531eff73813834822610ef77c9
-  CONFIGURE_COMMAND ""
-  INSTALL_COMMAND ""
-  DOWNLOAD_DIR ${KISSFFT_DIR}
-  SOURCE_DIR ${KISSFFT_DIR}
-  BINARY_DIR ${KISSFFT_DIR}
-  BUILD_COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_FLAGS} -Dkiss_fft_scalar=double -I. -c kiss_fft.c tools/kiss_fftr.c tools/kiss_fftnd.c tools/kiss_fftndr.c && ar crus libkissfft.a kiss_fft.o kiss_fftr.o kiss_fftnd.o kiss_fftndr.o
-  )
-add_library(kissfft STATIC IMPORTED)
-set_property(TARGET kissfft PROPERTY IMPORTED_LOCATION ${KISSFFT_DIR}/libkissfft.a)
-add_dependencies(kissfft kissfft_proj)
 
 if ( NOT WIN32)
   find_package(OpenMP REQUIRED)

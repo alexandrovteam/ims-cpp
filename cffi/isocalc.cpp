@@ -88,9 +88,9 @@ IMS_EXTERN Spectrum* spectrum_new(int n, double* masses, double* abundances) {
 }
 
 IMS_EXTERN Spectrum* spectrum_new_from_sf(
-    const char* formula, double threshold, double fft_threshold) {
+    const char* formula, double desired_probability) {
   return wrap_catch<Spectrum*>(nullptr, [&]() {
-    return heapify(computeIsotopePattern(formula, threshold, fft_threshold));
+    return heapify(computeIsotopePattern(formula, desired_probability));
   });
 }
 
