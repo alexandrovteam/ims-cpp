@@ -388,7 +388,7 @@ class MultiElementConfGenerator {
   MultiElementConf::SubgeneratorVec subgenerators_;
   KahanAdder total_prob_;
 
-  double expansion_factor_ = 0.3;
+  double expansion_factor_ = 0.25;
   double log_prob_threshold_;
 
   using ConfigurationVec = std::vector<MultiElementConf>;
