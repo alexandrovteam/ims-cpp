@@ -59,13 +59,6 @@ public:
   {
   }
 
-  SingleElementConf(const SingleElementConf& other) :
-    element_(other.element_),
-    counts_(other.counts_),
-    n_isotopes_(other.n_isotopes_)
-  {
-  }
-
   bool operator==(const SingleElementConf& other) const {
     assert(element_->abbr == other.element_->abbr);
     return counts_ == other.counts_;
