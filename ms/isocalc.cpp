@@ -20,10 +20,12 @@
 namespace ms {
 
 struct LogFacTable {
-  double table[1024];
+  // just compute them all to avoid branch mispredictions;
+  // nobody cares about 0.5MB these days
+  double table[65536];
 
   LogFacTable() {
-    for (int i = 0; i < 1024; i++) table[i] = std::lgamma(i + 1);
+    for (int i = 0; i < 65536; i++) table[i] = std::lgamma(i + 1);
   }
 
   double operator[](size_t i) const { return table[i]; }
@@ -31,14 +33,8 @@ struct LogFacTable {
 
 static LogFacTable log_fac_table;
 
-double logFactorial(int n) {
-  if (n >= 1024) {
-    const double PI = 3.141592653589793;
-    double x = n + 1;
-    return (x - 0.5) * log(x) - x + 0.5 * log(2 * PI) + 1.0 / (12.0 * x);
-  } else {
-    return log_fac_table[n];
-  }
+double logFactorial(uint16_t n) {
+  return log_fac_table[n];
 }
 
 class SingleElementConf {
@@ -78,7 +74,7 @@ public:
     int total_count = 0;
 
     for (int i = 0; i < size(); i++) {
-      int count = counts_[i];
+      uint16_t count = counts_[i];
       double log_prob = element_->logProbability(i);
       result += count * log_prob - logFactorial(count);
       total_count += count;
@@ -400,12 +396,14 @@ class MultiElementConfGenerator {
   size_t used_in_last_chunk_ = 0;
 
   size_t* allocateConf() {
+    size_t width = elements_.size();
+
     if (data_chunks_.empty() || used_in_last_chunk_ == chunk_size_) {
-      data_chunks_.push_back(std::vector<size_t>(chunk_size_ * elements_.size()));
+      data_chunks_.push_back(std::vector<size_t>(chunk_size_ * width));
       used_in_last_chunk_ = 0;
     }
 
-    return &data_chunks_.back()[used_in_last_chunk_++ * elements_.size()];
+    return &data_chunks_.back()[used_in_last_chunk_++ * width];
   }
 
 public:
