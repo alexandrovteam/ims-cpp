@@ -234,6 +234,18 @@ class SingleElementConfGenerator {
   }
 
 public:
+  SingleElementConfGenerator() : element_(nullptr) {}
+
+  /*
+    CAVEAT: since compare_ contains a pointer to configurations_,
+    default copy constructor is NOT going to work as intended!
+    Therefore only empty generators can be copied
+    (which is required for std::vector operations)
+  */
+  SingleElementConfGenerator(const SingleElementConfGenerator& gen) {
+    assert(gen.element_ == nullptr);
+  }
+
   SingleElementConfGenerator(const ms::Element* element,
                              uint16_t atom_count,
                              double log_threshold=-20.0) :
@@ -373,6 +385,9 @@ class MultiElementConfGenerator {
   ConfigurationVec current_layer_, next_layer_, accepted_;
 public:
   MultiElementConfGenerator(const ms::ElementCounter& element_counts) {
+    subgenerators_.reserve(element_counts.size());
+    elements_.reserve(element_counts.size());
+
     for (const auto& elem: element_counts) {
       elements_.push_back(ms::Element::getByName(elem.first));
     }
@@ -438,7 +453,7 @@ public:
 
     size_t num_kept = std::floor(current_layer_.size() * expansion_factor_);
     auto middle_it = current_layer_.begin() + num_kept;
-    auto log_prob_compare = [](const MultiElementConf& c1, const MultiElementConf&c2) {
+    auto log_prob_compare = [](const MultiElementConf& c1, const MultiElementConf& c2) {
       return c1.getLogProbability() > c2.getLogProbability();
     };
     std::nth_element(current_layer_.begin(), middle_it, current_layer_.end(), log_prob_compare);
