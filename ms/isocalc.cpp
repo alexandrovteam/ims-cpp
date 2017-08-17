@@ -321,41 +321,57 @@ struct MultiElementConf {
   using SubgeneratorVec = std::vector<SingleElementConfGenerator>;
 
   const SubgeneratorVec* subgenerators;
-  std::vector<size_t> sub_conf_indices;
 
-  MultiElementConf(const SubgeneratorVec* subgenerators) :
-    subgenerators(subgenerators),
-    sub_conf_indices(subgenerators->size())
-  {}
+private:
+  double log_prob_;
+  const size_t* sub_conf_indices_;
 
+  void computeLogProbability() {
+    log_prob_ = 0.0;
+    for (size_t i = 0; i < size(); i++)
+      log_prob_ += getSubConfiguration(i).getLogProbability();
+  }
+
+public:
   MultiElementConf(const SubgeneratorVec* subgenerators,
-                   const std::vector<size_t>& indices) :
+                   const size_t* indices) :
     subgenerators(subgenerators),
-    sub_conf_indices(indices)
-  {}
+    sub_conf_indices_(indices)
+  {
+    computeLogProbability();
+  }
 
   const SingleElementConf& getSubConfiguration(size_t i) const {
-    return (*subgenerators)[i].getConfiguration(sub_conf_indices[i]);
+    return (*subgenerators)[i].getConfiguration(sub_conf_indices_[i]);
   }
 
   double getLogProbability() const {
-    double log_prob = 0.0;
-    for (size_t i = 0; i < sub_conf_indices.size(); i++)
-      log_prob += getSubConfiguration(i).getLogProbability();
-    return log_prob;
+    return log_prob_;
   }
 
   double getMass() const {
     double mass = 0.0;
-    for (size_t i = 0; i < sub_conf_indices.size(); i++)
+    for (size_t i = 0; i < size(); i++)
       mass += getSubConfiguration(i).getMass();
     return mass;
+  }
+
+  size_t operator[](size_t i) const {
+    return sub_conf_indices_[i];
+  }
+
+  size_t size() const {
+    return subgenerators->size();
+  }
+
+  void copyConfIndices(size_t* out) const {
+    std::copy(sub_conf_indices_, sub_conf_indices_ + size(), out);
   }
 
   std::string toString() const {
     std::stringstream ss;
     ss << "MultiElementConf(";
-    for (size_t i = 0; i < sub_conf_indices.size(); i++) {
+    for (size_t i = 0; i < size(); i++) {
       if (i > 0)
         ss << ", ";
       const auto& sub_conf = getSubConfiguration(i);
@@ -383,6 +399,22 @@ class MultiElementConfGenerator {
   using ConfigurationVec = std::vector<MultiElementConf>;
 
   ConfigurationVec current_layer_, next_layer_, accepted_;
+
+  // allocation of many tiny vectors leads to terrible performance,
+  // so we allocate configuration memory from large chunks
+  std::vector<std::vector<size_t>> data_chunks_;
+  static const size_t chunk_size_ = 1024;
+  size_t used_in_last_chunk_ = 0;
+
+  size_t* allocateConf() {
+    if (data_chunks_.empty() || used_in_last_chunk_ == chunk_size_) {
+      data_chunks_.push_back(std::vector<size_t>(chunk_size_ * elements_.size()));
+      used_in_last_chunk_ = 0;
+    }
+
+    return &data_chunks_.back()[used_in_last_chunk_++ * elements_.size()];
+  }
+
 public:
   MultiElementConfGenerator(const ms::ElementCounter& element_counts) {
     subgenerators_.reserve(element_counts.size());
@@ -398,7 +430,9 @@ public:
       subgenerators_.back().advance();
     }
 
-    current_layer_.emplace_back(&subgenerators_);
+    size_t* indices = allocateConf();
+    std::fill(indices, indices + elements_.size(), 0);
+    current_layer_.emplace_back(&subgenerators_, indices);
     log_prob_threshold_ = current_layer_.back().getLogProbability();
   }
 
@@ -422,15 +456,16 @@ public:
         continue;
       }
 
-      auto indices = conf.sub_conf_indices;
       for (size_t i = 0; i < dim(); i++) {
         auto& subgen = subgenerators_[i];
-        while (subgen.size() <= indices[i] + 1 && subgen.advance());
-        if (subgen.size() <= indices[i] + 1)
+        while (subgen.size() <= conf[i] + 1 && subgen.advance());
+        if (subgen.size() <= conf[i] + 1)
           continue;
+
+        size_t* indices = allocateConf();
+        conf.copyConfIndices(indices);
         ++indices[i];
         current_layer_.emplace_back(&subgenerators_, indices);
-        --indices[i];
 
         // A trick to avoid visiting the same configuration twice:
         // if the parent had zero at this index, it's the only parent, so we continue;
@@ -439,7 +474,7 @@ public:
         // This way, each configuration (k_1, ..., k_n) is reached via the path
         // (0, ..., 0) -> (0, ..., 1) -> ... -> (0, ..., k_n) -> (0, ..., 1, k_n) ->
         // ... -> (0, ..., k_{n-1}, k_n) -> ... (1, ..., k_n) -> ... -> (k_1, ..., k_n)
-        if (indices[i] != 0)
+        if (conf[i] != 0)
           break;
       }
     }
@@ -782,4 +817,10 @@ std::map<std::string, std::vector<Result>> ExactMassSearchWithAdduct::run() cons
   return results;
 }
 }
+}
+
+int main() {
+  for (int i = 0; i < 1000; i++) {
+    ms::computeIsotopePattern("C100H200O50P5N10", 0.99999);
+  }
 }
