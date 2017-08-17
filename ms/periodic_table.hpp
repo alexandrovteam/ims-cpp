@@ -27,13 +27,14 @@ public:
     abbr{abbr}, number{atomicNumber}, isotope_pattern{isotope_pattern},
     log_probs_(isotope_pattern.size())
   {
+    this->isotope_pattern.normalize();
+
     double total_intensity = 0.0;
-    for (double x: isotope_pattern.intensities)
+    for (double x: this->isotope_pattern.intensities)
       total_intensity += x;
 
-    for (int i = 0; i < isotope_pattern.size(); i++)
-      log_probs_[i] = std::log(isotope_pattern.intensities[i] / total_intensity);
-    this->isotope_pattern.normalize();
+    for (int i = 0; i < this->isotope_pattern.size(); i++)
+      log_probs_[i] = std::log(this->isotope_pattern.intensities[i] / total_intensity);
   }
 
   // log-probability of i-th most common isotope (counting from zero)

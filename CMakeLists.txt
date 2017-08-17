@@ -114,13 +114,13 @@ set(SRC_COMMON
   )
 add_library(libims STATIC ${SRC_COMMON})
 target_compile_options(libims PUBLIC -std=c++11)
-add_dependencies(libims blosc kissfft)
+add_dependencies(libims blosc)
 set_target_properties(libims PROPERTIES OUTPUT_NAME ims)
 
 if ( NOT APPLE )
-target_link_libraries(libims kissfft ${BLOSC_LIBRARY} -fopenmp -pthread)
+target_link_libraries(libims ${BLOSC_LIBRARY} -fopenmp -pthread)
 else()
-target_link_libraries(libims kissfft)
+target_link_libraries(libims)
 endif()
 
 add_executable(ims-bin
@@ -153,8 +153,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/)
 
 add_library(ms_cffi SHARED cffi/isocalc.cpp cffi/common.cpp ms/isocalc.cpp ms/spectrum.cpp ms/periodic_table.cpp)
 target_compile_options(ms_cffi PUBLIC -std=c++11)
-add_dependencies(ms_cffi kissfft)
-target_link_libraries(ms_cffi kissfft)
 
 if ( WIN32 )
   target_link_libraries(ms_cffi -Wl,-Bstatic -lstdc++ -lpthread -lws2_32)
