@@ -228,7 +228,7 @@ public:
   /*
     CAVEAT: since compare_ contains a pointer to configurations_,
     default copy constructor is NOT going to work as intended!
-    Therefore only empty generators can be copied
+    Therefore only empty generators are allowed to be copied
     (which is required for std::vector operations)
   */
   SingleElementConfGenerator(const SingleElementConfGenerator& gen) {
@@ -330,6 +330,12 @@ public:
     computeLogProbability();
   }
 
+  MultiElementConf() :
+    subgenerators(nullptr),
+    sub_conf_indices_(nullptr)
+  {
+  }
+
   const SingleElementConf& getSubConfiguration(size_t i) const {
     return (*subgenerators)[i].getConfiguration(sub_conf_indices_[i]);
   }
@@ -411,6 +417,10 @@ public:
     subgenerators_.reserve(element_counts.size());
     elements_.reserve(element_counts.size());
 
+    current_layer_.reserve(128);
+    next_layer_.reserve(128);
+    accepted_.reserve(256);
+
     for (const auto& elem: element_counts) {
       elements_.push_back(ms::Element::getByName(elem.first));
     }
@@ -439,13 +449,10 @@ public:
       current_layer_.pop_back();
 
       double log_prob = conf.getLogProbability();
-      if (log_prob >= log_prob_threshold_) {
-        accepted_.push_back(conf);
-        total_prob_.add(std::exp(log_prob));
-      } else {
-        next_layer_.push_back(conf);
-        continue;
-      }
+      assert(log_prob >= log_prob_threshold_);
+
+      accepted_.push_back(conf);
+      total_prob_.add(std::exp(log_prob));
 
       for (size_t i = 0; i < dim(); i++) {
         auto& subgen = subgenerators_[i];
@@ -456,13 +463,16 @@ public:
         size_t* indices = allocateConf();
         conf.copyConfIndices(indices);
         ++indices[i];
-        current_layer_.emplace_back(&subgenerators_, indices);
+        MultiElementConf new_conf{&subgenerators_, indices};
+        double new_prob = new_conf.getLogProbability();
+        if (new_prob >= log_prob_threshold_)
+          current_layer_.push_back(new_conf);
+        else
+          next_layer_.push_back(new_conf);
 
         // A trick to avoid visiting the same configuration twice:
-        // if the parent had zero at this index, it's the only parent, so we continue;
-        // otherwise, we make it so that each configuration originates from the parent
-        // whose first non-zero index is leftmost.
-        // This way, each configuration (k_1, ..., k_n) is reached via the path
+        // each configuration (k_1, ..., k_n) is reached via the unique path
+        // such that rightmost coordinates change first, i.e.
         // (0, ..., 0) -> (0, ..., 1) -> ... -> (0, ..., k_n) -> (0, ..., 1, k_n) ->
         // ... -> (0, ..., k_{n-1}, k_n) -> ... (1, ..., k_n) -> ... -> (k_1, ..., k_n)
         if (conf[i] != 0)
@@ -474,8 +484,6 @@ public:
       return false;
 
     current_layer_.swap(next_layer_);
-    ConfigurationVec empty;
-    next_layer_.swap(empty);
 
     size_t num_kept = std::floor(current_layer_.size() * expansion_factor_);
     auto middle_it = current_layer_.begin() + num_kept;
@@ -484,6 +492,9 @@ public:
     };
     std::nth_element(current_layer_.begin(), middle_it, current_layer_.end(), log_prob_compare);
     log_prob_threshold_ = middle_it->getLogProbability();
+
+    next_layer_.assign(middle_it + 1, current_layer_.end()); // all < new threshold
+    current_layer_.resize(num_kept + 1); // all >= new threshold
 
     return true;
   }
