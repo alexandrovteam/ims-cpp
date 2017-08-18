@@ -820,9 +820,3 @@ std::map<std::string, std::vector<Result>> ExactMassSearchWithAdduct::run() cons
 }
 }
 }
-
-int main() {
-  for (int i = 0; i < 1000; i++) {
-    ms::computeIsotopePattern("C100H200O50P5N10", 0.99999);
-  }
-}
