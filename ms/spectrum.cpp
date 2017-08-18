@@ -131,6 +131,32 @@ double EnvelopeGenerator::currentSigma() const {
   return sigma_;
 }
 
+struct ExpTable {
+  std::vector<double> table;
+  const double step = 4e-3;
+  const double min = -18;
+  const double max = 0;
+
+  ExpTable() {
+    table.reserve((max - min) / step);
+    for (double x = min; x <= max; x += step)
+      table.push_back(std::exp(x));
+  }
+
+  double operator()(double x) const {
+    if (min > x)
+      return 0;
+    int idx = std::floor((x - min) / step);
+    assert(idx >= 0 && idx < table.size());
+    double diff = x - (min + idx * step);
+
+    // gives at most 1e-8 relative error with step=4e-3
+    return table[idx] * (1 + diff * (1 + diff / 2.0));
+  }
+};
+
+static ExpTable fastexp;
+
 double EnvelopeGenerator::envelope(double mz) {
   if (empty_space_) return 0.0;  // no isotopic peaks nearby
   double result = 0.0;
@@ -139,7 +165,7 @@ double EnvelopeGenerator::envelope(double mz) {
     --k;
   while (k < n && p_.masses[k] - mz <= width_ * sigma_) {
     double sd_dist = (p_.masses[k] - mz) / sigma_;
-    result += p_.intensities[k] * std::exp(-0.5 * std::pow(sd_dist, 2));
+    result += p_.intensities[k] * fastexp(-0.5 * std::pow(sd_dist, 2));
     ++k;
   }
   return result;
@@ -171,7 +197,7 @@ Spectrum Spectrum::envelopeCentroids(const InstrumentProfile* instrument,
     throw std::logic_error("points_per_fwhm must be at least 5 for meaningful results");
   if (centroid_bins < 3) throw std::logic_error("centroid_bins must be at least 3");
 
-  const size_t width = 12;
+  const size_t width = 6;
   double min_mz = *std::min_element(this->masses.begin(), this->masses.end());
   double max_mz = *std::max_element(this->masses.begin(), this->masses.end());
 

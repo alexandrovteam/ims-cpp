@@ -16,14 +16,10 @@ typedef std::map<std::string, int16_t> ElementCounter;
 double monoisotopicMass(const ElementCounter& counter);
 double monoisotopicMass(const std::string& formula);
 
-Spectrum computeIsotopePattern(
-    const Element& element, size_t amount, double fft_threshold = 0.0);
-
 Spectrum computeIsotopePattern(const ElementCounter& element_counts,
-    double threshold = 1e-4, double fft_threshold = 1e-8);
+                               double desired_probability=0.99999);
 
-Spectrum computeIsotopePattern(
-    const std::string& sum_formula, double threshold = 1e-4, double fft_threshold = 1e-8);
+Spectrum computeIsotopePattern(const std::string& sum_formula, double desired_probability=0.99999);
 
 namespace mass_search {
 
