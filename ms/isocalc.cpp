@@ -480,6 +480,9 @@ public:
       }
     }
 
+    if (accepted_.size() > 100000)
+      throw std::runtime_error("too many isotopic combinations (over 100k), reduce desired coverage");
+
     if (next_layer_.empty())
       return false;
 
