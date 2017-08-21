@@ -44,6 +44,7 @@ double instrument_resolving_power_at(InstrumentProfile, double mz);
 typedef void* Spectrum;
 Spectrum spectrum_new(int n, double* masses, double* intensities);
 Spectrum spectrum_new_from_sf(char* formula, double desired_prob);
+Spectrum spectrum_new_from_sf_thr(char* formula, double prob_threshold, int relative);
 Spectrum spectrum_new_from_raw(int n, double* masses, float* intensities, int window_size);
 Spectrum spectrum_copy(Spectrum);
 float spectrum_envelope(Spectrum, InstrumentProfile, double mz);

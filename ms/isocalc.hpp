@@ -19,7 +19,15 @@ double monoisotopicMass(const std::string& formula);
 Spectrum computeIsotopePattern(const ElementCounter& element_counts,
                                double desired_probability=0.99999);
 
+Spectrum computeIsotopePatternThr(const ElementCounter& element_counts,
+                                  double probability_threshold,
+                                  bool relative=false);
+
 Spectrum computeIsotopePattern(const std::string& sum_formula, double desired_probability=0.99999);
+
+Spectrum computeIsotopePatternThr(const std::string& sum_formula,
+                                  double probability_threshold=1e-5,
+                                  bool relative=false);
 
 namespace mass_search {
 

@@ -22,10 +22,13 @@ namespace ms {
 struct LogFacTable {
   // just compute them all to avoid branch mispredictions;
   // nobody cares about 0.5MB these days
-  double table[65536];
+  std::vector<double> table;
 
   LogFacTable() {
-    for (int i = 0; i < 65536; i++) table[i] = std::lgamma(i + 1);
+    const size_t N = 65536;
+    table.resize(N);
+    for (size_t i = 0; i < N; i++)
+      table[i] = std::lgamma(i + 1);
   }
 
   double operator[](size_t i) const { return table[i]; }
@@ -502,6 +505,47 @@ public:
     return true;
   }
 
+  // process a single layer using user-specified threshold
+  bool advance(double log_prob_threshold, bool relative=false) {
+    if (relative)
+      this->log_prob_threshold_ += log_prob_threshold;
+    else
+      this->log_prob_threshold_ = log_prob_threshold;
+
+    while (!current_layer_.empty()) {
+      const auto conf = std::move(current_layer_.back());
+      current_layer_.pop_back();
+
+      double log_prob = conf.getLogProbability();
+      assert(log_prob >= log_prob_threshold_);
+
+      accepted_.push_back(conf);
+      total_prob_.add(std::exp(log_prob));
+
+      if (accepted_.size() > 100000)
+        throw std::runtime_error("too many isotopic combinations (over 100k), increase the threshold");
+
+      for (size_t i = 0; i < dim(); i++) {
+        auto& subgen = subgenerators_[i];
+        while (subgen.size() <= conf[i] + 1 && subgen.advance());
+        if (subgen.size() <= conf[i] + 1)
+          continue;
+
+        size_t* indices = allocateConf();
+        conf.copyConfIndices(indices);
+        ++indices[i];
+        MultiElementConf new_conf{&subgenerators_, indices};
+        double new_prob = new_conf.getLogProbability();
+        if (new_prob >= log_prob_threshold_)
+          current_layer_.push_back(new_conf);
+
+        if (conf[i] != 0)
+          break;
+      }
+    }
+
+    return false;
+  }
 
   // unsorted top configurations whose probability adds up to collectedProbability()
   const std::vector<MultiElementConf>& configurations() const {
@@ -549,11 +593,35 @@ Spectrum computeIsotopePattern(const ElementCounter& element_counts, double desi
   return isotope_pattern;
 }
 
-Spectrum computeIsotopePattern(
-    const std::string& sum_formula, double desired_probability) {
+Spectrum computeIsotopePatternThr(const ElementCounter& element_counts, double probability_threshold, bool relative)
+{
+  assert(probability_threshold >= 0 && probability_threshold < 1);
+
+  MultiElementConfGenerator gen(element_counts);
+  gen.advance(std::log(probability_threshold), relative);
+  std::vector<double> masses, intensities;
+  for (const auto& conf: gen.configurations()) {
+    masses.push_back(conf.getMass());
+    intensities.push_back(std::exp(conf.getLogProbability()));
+  }
+
+  ms::Spectrum isotope_pattern{masses, intensities};
+  isotope_pattern.normalize();
+  return isotope_pattern;
+}
+
+Spectrum computeIsotopePattern(const std::string& sum_formula, double desired_probability)
+{
   auto counts = sf_parser::parseSumFormula(sum_formula);
   return computeIsotopePattern(counts, desired_probability);
 }
+
+Spectrum computeIsotopePatternThr(const std::string& sum_formula, double probability_threshold, bool relative)
+{
+  auto counts = sf_parser::parseSumFormula(sum_formula);
+  return computeIsotopePatternThr(counts, probability_threshold, relative);
+}
+
 }
 
 namespace sf_parser {

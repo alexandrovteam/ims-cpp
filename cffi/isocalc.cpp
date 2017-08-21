@@ -94,6 +94,15 @@ IMS_EXTERN Spectrum* spectrum_new_from_sf(
   });
 }
 
+IMS_EXTERN Spectrum* spectrum_new_from_sf_thr(const char* formula,
+                                              double probability_threshold,
+                                              int relative)
+{
+  return wrap_catch<Spectrum*>(nullptr, [&]() {
+    return heapify(computeIsotopePatternThr(formula, probability_threshold, bool(relative)));
+  });
+}
+
 IMS_EXTERN Spectrum* spectrum_new_from_raw(
     int n, double* masses, float* intensities, int window_size) {
   return wrap_catch<Spectrum*>(nullptr, [&]() {
