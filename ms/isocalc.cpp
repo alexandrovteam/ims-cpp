@@ -17,6 +17,10 @@
 #include <unordered_set>
 #include <vector>
 
+#ifdef DEBUG_ISOSPEC
+#include <iostream>
+#endif
+
 namespace ms {
 
 struct LogFacTable {
@@ -373,7 +377,8 @@ public:
       if (i > 0)
         ss << ", ";
       const auto& sub_conf = getSubConfiguration(i);
-      ss << sub_conf.element()->abbr << "{";
+      ss << sub_conf.element()->abbr
+         << "[" << operator[](i) << "] {";
       for (size_t j = 0; j < sub_conf.size(); j++) {
         if (j > 0)
           ss << ", ";
@@ -447,6 +452,12 @@ public:
 
   // generates the next layer and returns true if it's non-empty
   bool advance() {
+
+#ifdef DEBUG_ISOSPEC
+    std::cout << "Current threshold: " << std::exp(log_prob_threshold_) << std::endl;
+    std::cout << "Current layer size: " << current_layer_.size() << std::endl;
+#endif
+
     while (!current_layer_.empty()) {
       const auto conf = std::move(current_layer_.back());
       current_layer_.pop_back();
@@ -454,14 +465,22 @@ public:
       double log_prob = conf.getLogProbability();
       assert(log_prob >= log_prob_threshold_);
 
+#ifdef DEBUG_ISOSPEC
+      std::cout << "Accepted " << conf.toString() << std::endl;
+#endif
+
       accepted_.push_back(conf);
       total_prob_.add(std::exp(log_prob));
 
       for (size_t i = 0; i < dim(); i++) {
         auto& subgen = subgenerators_[i];
         while (subgen.size() <= conf[i] + 1 && subgen.advance());
-        if (subgen.size() <= conf[i] + 1)
-          continue;
+        if (subgen.size() <= conf[i] + 1) {
+          if (conf[i] > 0)
+            break;
+          else
+            continue;
+        }
 
         size_t* indices = allocateConf();
         conf.copyConfIndices(indices);
@@ -472,6 +491,11 @@ public:
           current_layer_.push_back(new_conf);
         else
           next_layer_.push_back(new_conf);
+
+#ifdef DEBUG_ISOSPEC
+        std::cout << conf.toString() << " -> " << new_conf.toString() << " | "
+                  << (new_prob >= log_prob_threshold_ ? "current" : "next") << std::endl;
+#endif
 
         // A trick to avoid visiting the same configuration twice:
         // each configuration (k_1, ..., k_n) is reached via the unique path
@@ -489,6 +513,13 @@ public:
     if (next_layer_.empty())
       return false;
 
+#ifdef DEBUG_ISOSPEC
+    std::cout << "Next layer:" << std::endl;
+    for (const auto& conf: next_layer_)
+      std::cout << conf.toString() << std::endl;
+    std::cout << "-----------" << std::endl;
+#endif
+
     current_layer_.swap(next_layer_);
 
     size_t num_kept = std::floor(current_layer_.size() * expansion_factor_);
@@ -498,6 +529,11 @@ public:
     };
     std::nth_element(current_layer_.begin(), middle_it, current_layer_.end(), log_prob_compare);
     log_prob_threshold_ = middle_it->getLogProbability();
+
+#ifdef DEBUG_ISOSPEC
+    std::cout << "Kept " << num_kept + 1 << " / " << current_layer_.size()
+              << " elements in the next layer" << std::endl;
+#endif
 
     next_layer_.assign(middle_it + 1, current_layer_.end()); // all < new threshold
     current_layer_.resize(num_kept + 1); // all >= new threshold
@@ -519,6 +555,10 @@ public:
       double log_prob = conf.getLogProbability();
       assert(log_prob >= log_prob_threshold_);
 
+#ifdef DEBUG_ISOSPEC
+      std::cout << "Accepted " << conf.toString() << std::endl;
+#endif
+
       accepted_.push_back(conf);
       total_prob_.add(std::exp(log_prob));
 
@@ -528,8 +568,12 @@ public:
       for (size_t i = 0; i < dim(); i++) {
         auto& subgen = subgenerators_[i];
         while (subgen.size() <= conf[i] + 1 && subgen.advance());
-        if (subgen.size() <= conf[i] + 1)
-          continue;
+        if (subgen.size() <= conf[i] + 1) {
+          if (conf[i] > 0)
+            break;
+          else
+            continue;
+        }
 
         size_t* indices = allocateConf();
         conf.copyConfIndices(indices);
@@ -538,6 +582,11 @@ public:
         double new_prob = new_conf.getLogProbability();
         if (new_prob >= log_prob_threshold_)
           current_layer_.push_back(new_conf);
+
+#ifdef DEBUG_ISOSPEC
+        std::cout << conf.toString() << " -> " << new_conf.toString() << " | "
+                  << (new_prob >= log_prob_threshold_ ? "add" : "skip") << std::endl;
+#endif
 
         if (conf[i] != 0)
           break;
