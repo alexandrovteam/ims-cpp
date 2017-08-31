@@ -19,7 +19,7 @@ if ( APPLE )
 elseif( WIN32 )
 else()
   set(CMAKE_C_FLAGS "-fPIC")
-  set(CMAKE_CXX_FLAGS "-fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wl,--exclude-libs=ALL")
+  set(CMAKE_CXX_FLAGS "-fPIC -fvisibility=hidden -fvisibility-inlines-hidden -Wl,--exclude-libs=ALL -ffunction-sections")
 endif()
 
 # MessagePack - simple serialization library
@@ -93,9 +93,9 @@ endif("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc -Wl,--gc-sections")
 if (NOT APPLE)
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libstdc++ -static-libgcc -Wl,--gc-sections")
 # on Mac OS X static linking leads to exceptions not being caught,
 # so it's better to just use the 'delocate-wheel' tool (puts needed shared libs into the wheel)
 endif()
