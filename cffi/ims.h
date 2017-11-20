@@ -35,6 +35,7 @@ int imzb_reader_dbscan(ImzbReader, int minPts, double eps, MzBin** out);
 int imzb_reader_dbscan2(ImzbReader, int minPts, double eps, double min_mz, double max_mz, MzBin** out);
 int imzb_reader_dbscan3(ImzbReader, int minPts, double (*eps)(double), MzBin** out);
 int imzb_reader_dbscan4(ImzbReader, int minPts, double (*eps)(double), double min_mz, double max_mz, MzBin** out);
+int imzb_convert_from_imzml(char* imzml_fn, char* output_fn);
 
 typedef void* InstrumentProfile;
 InstrumentProfile instrument_profile_new(const char* type, double resolving_power, double at_mz);

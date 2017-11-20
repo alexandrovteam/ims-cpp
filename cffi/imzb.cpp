@@ -1,6 +1,7 @@
 #include "cffi/common.hpp"
 #include "imzb/reader.hpp"
 #include "imzb/dbscan.hpp"
+#include "utils/convert.hpp"
 
 using namespace cffi;
 
@@ -87,6 +88,14 @@ IMS_EXTERN int imzb_reader_dbscan4(imzb::ImzbReader* reader, int minPts, double 
                                    double min_mz, double max_mz, imzb::MzBin** out) {
   return wrap_catch<int>(-1, [&]() -> int {
     return copyBins(imzb::dbscan(reader, uint32_t(minPts), eps, min_mz, max_mz), out);
+  });
+}
+
+IMS_EXTERN int imzb_convert_from_imzml(const char* imzml_filename, const char* output_filename) {
+  return wrap_catch<int>(-1, [&]() -> int {
+    imzb::ImzbCompressionSettings settings;
+    convertToImzb(imzml_filename, output_filename, 10000000, settings);
+    return 0;
   });
 }
 
