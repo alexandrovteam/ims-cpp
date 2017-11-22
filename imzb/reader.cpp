@@ -35,13 +35,15 @@ size_t imzb::ImzbReader::decompressBlock(size_t block_idx, std::ifstream& in,
   assert(block_idx + 1 < index_->offsets.size());
   uint64_t start = index_->offsets[block_idx];
   uint64_t end = index_->offsets[block_idx + 1];
-  assert(start < end);
+  if (start >= end)
+    throw std::runtime_error("index is corrupted");
   inbuf.resize(end - start);
   in.seekg(start);
   in.read(&inbuf[0], end - start);
   int result =
       blosc_decompress_ctx(&inbuf[0], &outbuf[0], outbuf.size() * sizeof(ims::Peak), 1);
-  assert(result > 0);
+  if (result <= 0)
+    throw std::runtime_error("decompression error");
   return result / sizeof(ims::Peak);
 }
 
@@ -90,7 +92,11 @@ void imzb::ImzbReader::seek(double mz) {
 }
 
 std::vector<ims::Peak> imzb::ImzbReader::slice(double min_mz, double max_mz) const {
-  assert(min_mz < max_mz);
+  if (min_mz > max_mz) {
+    std::stringstream ss;
+    ss << "invalid arguments to ImzbReader::slice: " << min_mz << " > " << max_mz;
+    throw std::runtime_error(ss.str());
+  }
   std::vector<char> inbuf;
   std::vector<ims::Peak> result, outbuf{index_->header.block_size};
   size_t start_block = index_->startBlock(min_mz);
@@ -114,7 +120,8 @@ std::vector<ims::Peak> imzb::ImzbReader::slice(double min_mz, double max_mz) con
 }
 
 ims::Image<float> imzb::ImzbReader::image(double mz, double ppm) const {
-  assert(ppm > 0);
+  if (ppm <= 0)
+    throw std::runtime_error("ppm must be positive");
 
   ims::Image<float> img(height(), width());
   readImage(mz, ppm, img.rawPtr());
